@@ -840,3 +840,31 @@ Then the original M5 list:
 
 All of the above committed and pushed; production verified; the working tree
 is clean.
+
+## M5 outcome (reviewed 2026-09-21) - Phase 1 complete
+
+Done in commits `acbc18a` to `7eef796`: 22 server tests, 45 client tests,
+typecheck clean, balance and Vercel files untouched, production verified,
+working tree clean. The mobile board shows two real players.
+
+Implementer decisions where the spec was silent, all accepted and now part of
+the spec:
+
+- Step 0 item 3 is corrected: the unreachable fallback URI is added only when
+  `MONGODB_URI` is absent from the environment **and** `server/.env` does not
+  exist. `dotenv` never overrides a variable that is already set, so passing
+  the fallback unconditionally would have hidden the real `.env`.
+- `/play` locks the page by adding a `playing` class to `document.body` on
+  mount (removed on unmount); CSS sets `overflow: hidden` and
+  `overscroll-behavior: none`. The viewport meta gained `viewport-fit=cover`
+  (without it the safe-area insets are always zero) and `user-scalable=no`
+  (so a fast double tap on a pad does not zoom).
+- The landscape hint shows at `(orientation: landscape) and (max-height: 520px)`,
+  so tablets are not nagged.
+- Item 5's "play a run on PC and on a phone" is a human step. Amit did the phone
+  half; the PC board is still empty at hand-over.
+
+Outstanding, not blocking: the smoke script's real-database path (two-run rank
+assertion, leaderboard listing, `me` showing the better run, post-leave 401 on
+scores) has been written but not run, because `server/.env` does not exist on
+the build machine. First thing to do once it does: `npm run smoke`.
