@@ -47,8 +47,11 @@ In this spec the remembered value is called `ref` (a string, `''` when none).
 4. Results screen: animated numbers, save-score step, workshop reveal, sign-up button.
 5. "Behind the game" panel.
 6. Anonymous funnel analytics carrying the leaflet marker, plus a key-protected summary.
+7. The dartboard pace target under the due foot (pulled forward from M8; see
+   "Pace target" under M8 for the geometry). Rendering only.
 
-Not in M6: any change to game balance, rendering of the scene, the engine's
+Not in M6: any change to game balance, rendering of the scene other than the
+pace target, the engine's
 rules, the scores API, or the leaderboard logic. `client/src/game/engine.ts`,
 `course.ts`, `pace.ts`, `scoring.ts` do not change. `config.ts` changes
 **only** in the `label` strings of `TERRAIN` and `WEATHER`.
@@ -370,7 +373,11 @@ Replace the single pulsing footprint ring with a **static target** and a
 
 This is a rendering change only; `engine.ts` already exposes everything it
 needs (`nextDueMs`, `expectedFoot`, `currentTargetIntervalMs`, the windows in
-`config`). It may be pulled forward into M6 or M7 if Amit wants it sooner.
+`config`). **Pulled forward into M6 as item 7** (Amit, 2026-09-21): it replaces
+the M3 pace ring in `render.ts` (`drawPaceRing` and the footprint pulse); the
+footprint flash on events stays. The green disc radius `base` is the old ring's
+resting radius. Acceptance: at 100 steps per minute on flat ground a
+first-time adult can tell from the target alone, sound off, when to step.
 
 ---
 
