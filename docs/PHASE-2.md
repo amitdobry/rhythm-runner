@@ -30,6 +30,8 @@ asking for a nickname before the child has played.
 | Session length      | Stays 60 seconds. Measure abandonment first; a 20-second "quick run" is an M7+ experiment only if the data says so.                                                                                                                                                                                                   |
 | Skips               | Rule unchanged. `run_completed` events carry the skipped count so the "strategic silence" worry can be checked with data.                                                                                                                                                                                             |
 | Levels, multiplayer | Not in Phase 2. One good course sells the workshop; multiplayer is an infrastructure trap.                                                                                                                                                                                                                            |
+| Sound               | Amit's own recordings (start cue, perfect, good, miss, missed beat, stumble, finish) and a quiet music loop, built 2026-09-21. The synthesized due-tick stays. A mute button remembered per device is next.                                                                                                           |
+| One game, one board | Superseding Phase 1: the phone layout is a responsive layout, not a mode. No PC / phone toggle; the device is detected. One leaderboard for everyone. Phone windows stay wider only to compensate touch latency; `platform` is kept on each score for analytics, so the choice can be checked with data.              |
 
 ## Milestones
 
@@ -37,8 +39,10 @@ asking for a nickname before the child has played.
 
 Hebrew end to end; play before nickname; four-step tutorial; results-screen
 workshop reveal with the sign-up button; "behind the game" panel; anonymous
-funnel analytics with a campaign parameter. Specified file by file in
-`docs/PHASE-2-BUILD.md`.
+funnel analytics carrying the leaflet marker; the dartboard pace target;
+easier tuning with every step answered on screen (item 8); Amit's recorded
+sounds (item 9); one board and no device toggle (item 10). Specified file by
+file in `docs/PHASE-2-BUILD.md`.
 
 Done when: a fresh phone visit to `/?ref=LEAF5` reaches the results screen
 with taps only, no typing; saving with a nickname puts the run on the board;
@@ -80,7 +84,6 @@ planned separately once M6 is live and the first funnel numbers exist.
 - Accounts or passwords: rejected; a four-digit device code is a later option.
 - Multiplayer and live races: rejected for this phase.
 - Third-party analytics or session replay: rejected; our own event log is enough.
-- Music: not needed; clicks stay.
 
 ## The brainstorm, in short
 

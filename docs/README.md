@@ -19,16 +19,16 @@ Also read `../CLAUDE.md` (rules for Claude Code sessions) and `../README.md`
 
 ## Status
 
-| Milestone                     | State                            | Where to look                        |
-| ----------------------------- | -------------------------------- | ------------------------------------ |
-| Phase 0 - foundation          | done                             | PHASE-0.md                           |
-| M1 - hosted on Vercel         | done                             | PHASE-1.md, DEPLOY.md                |
-| M2 - engine with tests        | done                             | PHASE-1-BUILD.md, section M2         |
-| M3 - playable on PC and phone | done                             | PHASE-1-BUILD.md, section M3         |
-| M4 - scores and leaderboards  | done                             | PHASE-1-BUILD.md, section M4, API.md |
-| M5 - polish and hand-over     | done                             | PHASE-1-BUILD.md, section M5         |
-| M6 - conversion foundation    | built, awaiting Amit's play-test | PHASE-2-BUILD.md, section M6         |
-| M7 - replay and social        | after M6 is played               | PHASE-2-BUILD.md, section M7         |
-| M8 - character polish         |                                  | PHASE-2-BUILD.md, section M8         |
+| Milestone                     | State                   | Where to look                        |
+| ----------------------------- | ----------------------- | ------------------------------------ |
+| Phase 0 - foundation          | done                    | PHASE-0.md                           |
+| M1 - hosted on Vercel         | done                    | PHASE-1.md, DEPLOY.md                |
+| M2 - engine with tests        | done                    | PHASE-1-BUILD.md, section M2         |
+| M3 - playable on PC and phone | done                    | PHASE-1-BUILD.md, section M3         |
+| M4 - scores and leaderboards  | done                    | PHASE-1-BUILD.md, section M4, API.md |
+| M5 - polish and hand-over     | done                    | PHASE-1-BUILD.md, section M5         |
+| M6 - conversion foundation    | items 1-9 done, 10 next | PHASE-2-BUILD.md, section M6         |
+| M7 - replay and social        | after M6 is played      | PHASE-2-BUILD.md, section M7         |
+| M8 - character polish         |                         | PHASE-2-BUILD.md, section M8         |
 
 Production: <https://rhythm-runner-eight.vercel.app>

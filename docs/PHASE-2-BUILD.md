@@ -51,6 +51,9 @@ In this spec the remembered value is called `ref` (a string, `''` when none).
    "Pace target" under M8 for the geometry). Rendering only.
 8. Feel and difficulty: easier windows, softer penalties, and every step
    answered on screen (see "Item 8" below). Config values and rendering only.
+9. Sound: Amit's recordings for every moment, plus a quiet loop (built; see
+   "Item 9"). Follow-ups: mute button, start-cue length, failure-sound priority.
+10. One game, one board: no device toggle, a single leaderboard (see "Item 10").
 
 Not in M6: rendering of the scene other than items 7 and 8, the engine's
 rules, the scores API, or the leaderboard logic. `client/src/game/engine.ts`,
@@ -378,6 +381,84 @@ information and the HUD gets simpler.
 Acceptance: a first-time adult on PC finishes a run with energy above 0, sees
 green often, and can say after one run which of their steps were good and
 which were not, without being told.
+
+### Item 8 outcome (reviewed 2026-09-21)
+
+Done in commits `63174ca`, `15bdd33`, `c04614c`, `ed681c6`: the twelve values,
+every step answered on screen, the board under the start button, the plural
+fix, the docs. Four engine tests now read their expectations from
+`DEFAULT_CONFIG`; the stumble test loops until energy runs out. `behindRule`
+was corrected to say +2.5. Accepted as built. Amit's play-test decides whether
+the windows move again.
+
+Also shipped on Amit's direct request, accepted: `b673a4e` matches keys on
+`event.code` (physical key) so F and J work on a Hebrew keyboard layout, with
+`event.key` letters as a fallback; five tests including the Hebrew case.
+
+### Item 9. Sound (built 2026-09-21 on Amit's direct request; recorded by Amit)
+
+As built, commits `14d319b` to `599814f`. Files in `client/public/sounds/`,
+named for **when** they play, not what they are:
+
+| File          | Plays when                      | Size                              |
+| ------------- | ------------------------------- | --------------------------------- |
+| `start.mp3`   | the run starts (with the 3-2-1) | 58 KB                             |
+| `perfect.mp3` | a perfect step                  | 33 KB                             |
+| `good.mp3`    | a good step                     | 16 KB                             |
+| `bad.mp3`     | too fast, too slow, wrong foot  | 68 KB                             |
+| `sad.mp3`     | a beat passes with no step      | 31 KB                             |
+| `stumble.mp3` | energy hits zero                | 40 KB                             |
+| `finish.mp3`  | the run ends                    | 65 KB                             |
+| `music.mp3`   | quiet loop during the run       | 3.75 MB, lazy-loaded at run start |
+
+Effects are fetched on page load and decoded through Web Audio; playback waits
+for the context to wake and the buffer to decode, so the first cue is heard.
+The synthesized due-tick remains. Volumes are constants in `audio.ts`:
+`MUSIC_VOLUME` 0.12, `EFFECT_VOLUME` 0.55, `TICK_VOLUME` 0.06, a guess until
+Amit has listened.
+
+Follow-ups, part of item 10's prompt:
+
+- **Mute button.** A speaker icon in the play header and on the pre-start
+  overlay; toggles all sound; remembered in `localStorage.rr_muted`; default
+  on. A corridor demo needs a one-tap silence.
+- **Start cue length.** The cue starts with the countdown; if the recording is
+  longer than 3 s, fade it out over the last 200 ms so it never runs into the
+  first step.
+- **Failure sounds close together.** Priority order stumble > bad > sad. When
+  a lower-priority failure sound would start within 300 ms of a higher one,
+  skip it. The visual feedback always plays.
+- **Music size.** Keep 3.75 MB for now (lazy-loaded). Amit may export a mono
+  96 kbps version; if he does, drop it in with the same name.
+
+### Item 10. One game, one board (Amit, 2026-09-21)
+
+The phone layout is a responsive layout, not a second game. Supersedes the
+"Two ways to play" table's override row, the pre-start toggle from M3 and the
+two-board design from M4.
+
+- **No toggle.** Remove the מחשב / טלפון buttons from the pre-start overlay.
+  The layout is chosen by `detectPlatform()` alone. The `?platform=` URL
+  override and `rr_platform` stay as a hidden testing aid, undocumented in the UI.
+- **One leaderboard.** `GET /api/scores/top?limit`: no `platform` parameter (if
+  one is sent, ignore it); `$match { course: 'level-1' }` only; one best row per
+  player across both platforms. `GET /api/scores/me` -> `{ best: ScoreRow | null, runs }`.
+  `rank` counts all other players. New index `{ course: 1, score: -1 }`; the old
+  platform indexes may stay.
+- **Platform kept for analytics.** `ScoreDoc.platform` and `RunSummary.platform`
+  remain and are still validated; events keep `platform`. Nothing in the UI
+  compares the two any more.
+- **Client.** The "High scores" panel loses its tabs; one table; the player's row
+  highlighted; `yourBest` / `yourBestOne` from the single best. The results
+  line still says "מכשיר: מחשב / טלפון" as information, never as a category.
+  Strings `tabPc`, `tabMobile` removed from `he.ts`.
+- **Tests.** Server: `top` without `platform` -> 200 shape; the old 400 test goes.
+  Smoke script: no `platform` in the top call; `me.best` is one row.
+- **Docs.** `docs/API.md` scores section, `docs/GAME-DESIGN.md` ("one leaderboard
+  for everyone"; remove "separate boards"), `docs/README.md` status.
+
+Done when: the landing panel shows one list mixing Amit (phone) and any PC
+run; the results screen shows a rank against everyone; no toggle anywhere.
 
 ### M6 outcome, steps a-f (reviewed 2026-09-21)
 

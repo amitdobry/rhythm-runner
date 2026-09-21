@@ -88,7 +88,10 @@ above the most steps that fit in the run at the fastest pace, unknown
   players with a higher best score, plus one).
 - `400` invalid body. `503` no database.
 
-### `GET /api/scores/top?platform=pc&limit=10` - public (no session needed)
+### `GET /api/scores/top?limit=10` - public (no session needed)
+
+**Changing in M6 item 10:** one board for everyone; the `platform` query is
+ignored. Until then the route still takes `platform=pc|mobile`.
 
 `platform` required (`pc` or `mobile`); `limit` default 10, max 50.
 `200 { "rows": ScoreRow[] }`, best score per player, highest first. PC and
