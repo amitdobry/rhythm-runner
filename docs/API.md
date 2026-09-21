@@ -87,7 +87,7 @@ above the most steps that fit in the run at the fastest pace, unknown
   leaderboard of the same platform (1 = best).
 - `400` invalid body. `503` no database.
 
-### `GET /api/scores/top?platform=pc&limit=10` - session
+### `GET /api/scores/top?platform=pc&limit=10` - public (no session needed)
 
 `platform` required (`pc` or `mobile`); `limit` default 10, max 50.
 `200 { "rows": ScoreRow[] }`, best score per player, highest first. PC and

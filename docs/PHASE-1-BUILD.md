@@ -616,7 +616,41 @@ typecheck green.
 
 ---
 
+## M3 outcome (reviewed 2026-09-21)
+
+Done in commits `5b6e8f4`, `e31a93e`, `6173dd9`, `b19b94a`: 45 client tests,
+9 server tests, typecheck clean, pure files still pure, nothing under
+`server/` or the Vercel files touched. Verified on production by Amit on a PC
+and on a phone: a full run plays, it is fun, terrain and weather change the
+pace. No tuning values were changed.
+
+Decisions the implementer made where the spec was silent, all accepted and now
+part of the spec:
+
+- The footprint that flashes on an event is the foot that just stepped (or was
+  skipped), i.e. `oppositeFoot(expectedFoot)`; the pace ring stays on
+  `expectedFoot`.
+- `restart()` is `start()`.
+- The renderer prepends the previous segment behind the runner using the
+  `aheadMeters` rule extended backwards. This stays in `render.ts`;
+  `course.ts` is only about the road ahead.
+- `useGameLoop` publishes the full `GameState` to React every frame. Accepted
+  for now; reducing it to phase changes is an M5 polish item.
+- Render proportions (`ROAD_THICKNESS_FRACTION` 0.16, runner body 68 px,
+  pavement touching the road) are the new baseline.
+
 ## M4. Scores that stick
+
+Two decisions added after M3, on top of the original spec:
+
+1. **The leaderboard is public.** `GET /api/scores/top` needs no session. The
+   demo's job is to sell the course, and a child should see other children's
+   names before typing their own. `POST /api/scores` and `GET /api/scores/me`
+   still require the session cookie.
+2. **The enter screen shows the top 5** of the detected platform under the
+   nickname form, titled "Today's runners" if any row is from today, otherwise
+   "High scores". Same `ScoreRow` shape, read-only, no tabs. The home page
+   keeps the full panel described below.
 
 ### Server files
 
@@ -662,7 +696,7 @@ and `bestCombo <= runSeconds * 1000 / MIN_STEP_INTERVAL_MS`. Define
 `scores.ts` with a comment pointing at `client/src/game/config.ts`. Reject
 anything above with 400.
 
-### Routes (all require the session cookie; 401 otherwise; 503 without a database)
+### Routes (POST and `me` require the session cookie, 401 otherwise; `top` is public; all answer 503 without a database)
 
 ```text
 POST /api/scores                        body: RunSummary -> 201 { saved: ScoreRow, rank: number }
@@ -697,7 +731,7 @@ Behaviour of the player routes must not change (existing tests stay green).
 ### Tests (`server/test/scores.test.ts`, no database)
 
 - POST without cookie -> 401.
-- GET top without cookie -> 401 (leaderboard is inside the app, not public).
+- GET top without cookie and without a database -> 503 (public route, no 401).
 - GET top without `platform` -> 400.
 - POST with a cookie but no database -> 503.
 - `validateRun` unit tests: valid summary passes; missing field, negative
@@ -707,7 +741,9 @@ Behaviour of the player routes must not change (existing tests stay green).
 ### Client
 
 - `services/api.ts`: `submitScore(summary)`, `fetchTopScores(platform, limit?)`,
-  `fetchMyBest()`.
+  `fetchMyBest()`. `fetchTopScores` works before entering.
+- `EnterPage`: under the form, the top 5 for `readOverride() ?? detectPlatform()`,
+  loaded once on mount; hidden while loading or on error, never blocks entering.
 - `PlayPage`: on `finished`, submit once; results overlay shows "Rank #n on
   PC" / "on mobile" or a quiet "Score not saved" if the request fails. Never
   block "Run again".
@@ -734,6 +770,9 @@ two browsers. `npm test`, typecheck and `npm run smoke` all pass.
 
 ## M5. Ship and hand over
 
+0. `useGameLoop`: publish to React only when `phase` or `countdown` changes
+   (expose `phase` and a `finished: GameState | null`); the canvas reads the
+   ref. `PlayPage` must not re-render 60 times a second.
 1. Mobile polish: safe-area insets around the pads (`env(safe-area-inset-*)`),
    no body scroll or pull-to-refresh on `/play`, pads still reachable with one
    hand on a large phone, a one-line "hold your phone upright" hint in

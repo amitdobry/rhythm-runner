@@ -107,7 +107,7 @@ client/src/
 ├── pages/
 │   ├── HomePage.tsx     lobby: Play, personal bests, PC and Mobile leaderboards
 │   ├── PlayPage.tsx     canvas, pads on mobile, HUD, results overlay
-│   └── EnterPage.tsx    unchanged
+│   └── EnterPage.tsx    + top 5 high scores under the form (public)
 └── services/api.ts      + submitScore, fetchTopScores, fetchMyBest
 ```
 
@@ -198,7 +198,14 @@ are listed as M3 step 0 in `PHASE-1-BUILD.md`.
 Done when: a full run plays on desktop Chrome with keys and on a phone with
 two thumbs; terrain and weather visibly change the pace.
 
+**Done 2026-09-21** (commits `5b6e8f4` to `b19b94a`): 45 client tests, 9 server
+tests, typecheck clean. Verified on production by Amit on PC and phone; the
+game is fun. Implementer decisions reviewed and recorded in `PHASE-1-BUILD.md`.
+
 ### M4. Scores that stick
+
+Decided after M3: the leaderboard route is public and the enter screen shows
+the top 5, so a visitor sees names before typing one.
 
 1. Server: `scores` collection, indexes, three routes, shared auth helper,
    validation, tests for 401, 400, 503 and impossible runs.
