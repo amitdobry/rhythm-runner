@@ -345,6 +345,33 @@ best celebration; one truthful contextual challenge per run; result card
 Face and expressions, squash and stretch, three colourways, finish climax,
 weather transitions.
 
+### Pace target: a dartboard under the due foot (Amit, 2026-09-21)
+
+Replace the single pulsing footprint ring with a **static target** and a
+**moving ring**, so the player sees exactly when to step:
+
+- The target sits under the due foot: three concentric zones like a dartboard.
+  Red outside, a yellow band, a green disc in the middle.
+- The moving ring starts large right after the previous step and shrinks
+  linearly towards the centre, reaching the edge of the green disc exactly at
+  `nextDueMs`. Step when the ring is on green.
+- The zones are the timing windows made visible. With `interval` the current
+  target interval and `base` the green radius in pixels:
+  ring radius `r(t) = base * (1 + (nextDueMs - t) / interval)` (so it keeps
+  shrinking past due, into the centre: "too slow");
+  green disc: `base * (1 - perfect/interval)` .. `base * (1 + perfect/interval)`;
+  yellow band out to `base * (1 + good/interval)` and in to `base * (1 - good/interval)`;
+  red beyond. The bands are therefore wider on mobile, automatically.
+- On a step the ring freezes for 150 ms where it was and flashes the result
+  colour; on a skipped step the target flashes red and the ring restarts.
+- A new segment changes `interval`, so the ring visibly speeds up or slows
+  down: the pace change becomes something you see, not only read.
+- Colours: green `FLASH_PERFECT`, yellow `FLASH_GOOD`, red `FLASH_BAD`, ring white.
+
+This is a rendering change only; `engine.ts` already exposes everything it
+needs (`nextDueMs`, `expectedFoot`, `currentTargetIntervalMs`, the windows in
+`config`). It may be pulled forward into M6 or M7 if Amit wants it sooner.
+
 ---
 
 ## Landing page task (outside this repo)

@@ -56,7 +56,9 @@ names note, a small blocklist, a removal path for Amit).
 
 ### M8 - Character polish
 
-One memorable runner: a face, squash and stretch on perfect steps, joy at high
+A dartboard pace target under the due foot (red, yellow, green zones sized to
+the timing windows; a ring shrinks onto the green exactly when the step is due;
+see the build spec). One memorable runner: a face, squash and stretch on perfect steps, joy at high
 combo, panic at low energy, an exaggerated stumble; three colourways chosen
 before a run; a finish-line climax in the last five seconds (countdown, tape,
 streaks, score counting up, personal best as the largest message); more
