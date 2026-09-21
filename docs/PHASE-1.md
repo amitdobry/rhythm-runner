@@ -1,6 +1,6 @@
 # Phase 1 - First Playable Level, Hosted
 
-Date: 2026-09-21. Status: planned, not started.
+Date: 2026-09-21. Status: M1 done, M2 next.
 
 Phase 1 turns the Phase 0 foundation into a game a leaflet visitor can open in
 a browser and play for one minute: a runner on a scrolling road, taps to the
@@ -142,6 +142,14 @@ next starts. Tests and typecheck must be green at every commit.
    point at it from this moment.
 
 Done when: a stranger with the link sees the enter screen and can enter.
+
+**Done 2026-09-21.** Production: <https://rhythm-runner-eight.vercel.app>,
+Vercel project `rhythm-runner` on the Circle team (Hobby). Verified: health
+reports the database connected; enter -> me -> leave -> 401 via the API with a
+Secure, HttpOnly cookie; deep link `/enter` and unknown API route behave; the
+protected home page renders in Chrome with "Database: connected". Atlas allows
+`0.0.0.0/0`. The database user is still the admin user; the scoped
+`rhythm_runner_app` user is an open item.
 
 ### M2. The engine, with tests
 

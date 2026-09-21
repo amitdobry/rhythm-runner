@@ -12,14 +12,16 @@ decided and why.
 ## Coming from the workshop leaflet?
 
 This repository is the live record of a game that children build, step by step,
-in the AI coding workshop. Today it holds the foundation only, and it runs on
-your own computer (see "Running it" below). A hosted version you can play in the
-browser will be linked here once the students have built the first playable
-level.
+in the AI coding workshop.
+
+**Try it: <https://rhythm-runner-eight.vercel.app>**
+
+Today it holds the foundation only: pick a nickname and you are in. The first
+playable level is being built now (see `docs/PHASE-1.md`).
 
 ---
 
-## Running it
+## Running it locally
 
 You need Node.js 20 or newer.
 
@@ -90,9 +92,21 @@ rhythm-runner/
 │   │   └── index.ts        starts it
 │   └── test/               vitest smoke tests
 ├── scripts/smoke.mjs       start the real server, prove the flow, stop it
+├── api/index.mjs           Vercel entry: the same Express app as one serverless function
+├── vercel.json             build, output directory, /api rewrite and SPA fallback
 ├── docs/PHASE-0.md         decisions, what was reused, what is deferred
+├── docs/PHASE-1.md         the plan for the first playable level and hosting
 └── .env.example            variable names and placeholders only
 ```
+
+## How it is hosted
+
+Production is the Vercel project `rhythm-runner` (its own project, not shared
+with anything else). Every push to `main` deploys. The React build is served
+as static files; `api/index.mjs` runs the Express app as a serverless function
+and connects to MongoDB Atlas on the first request. `MONGODB_URI` and
+`MONGODB_DB_NAME` are environment variables of the Vercel project, never
+part of the repository.
 
 ## How entering works
 
