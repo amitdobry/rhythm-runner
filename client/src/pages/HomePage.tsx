@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { usePlayer } from '../player/PlayerContext';
 import { fetchHealth, type Health } from '../services/api';
 
@@ -21,8 +22,13 @@ export function HomePage() {
       </header>
 
       <section className="panel">
-        <p>Rhythm Runner — foundation ready. The game will be designed with the students.</p>
+        <p>
+          Match the pace of the road: left foot, right foot, up the hills and through the water.
+        </p>
         <p className="muted">You are playing as {player?.nickname}.</p>
+        <Link className="button-link primary" to="/play">
+          Play
+        </Link>
       </section>
 
       <p className="muted">

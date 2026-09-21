@@ -3,6 +3,7 @@ import { PlayerProvider } from './player/PlayerContext';
 import { RequirePlayer } from './player/RequirePlayer';
 import { EnterPage } from './pages/EnterPage';
 import { HomePage } from './pages/HomePage';
+import { PlayPage } from './pages/PlayPage';
 
 export function App() {
   return (
@@ -15,6 +16,14 @@ export function App() {
             element={
               <RequirePlayer>
                 <HomePage />
+              </RequirePlayer>
+            }
+          />
+          <Route
+            path="/play"
+            element={
+              <RequirePlayer>
+                <PlayPage />
               </RequirePlayer>
             }
           />
