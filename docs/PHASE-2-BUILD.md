@@ -913,6 +913,23 @@ EFFECT_VOLUME; if the fetch fails, a synthesized 300 ms rising sweep from
 Strings: `turbo` טורבו!, `turbosLabel` טורבו (for a results line "טורבו: {n}"
 shown only when `turbos > 0`).
 
+### M8 outcome (reviewed 2026-09-21)
+
+Done in commits `05508fb` to `a578775`: 81 client tests (69 + 4 colours + 8
+turbo), 47 server tests, typecheck clean, `render.ts` at 116 lines, the engine
+diff limited to turbo, the config diff limited to the turbo block, Vercel files
+untouched. Implementer decisions accepted: an eighth file `render/shapes.ts`
+for the shared helpers; `drawStars` takes the rim radius as an argument;
+`summarize.turbos` always sent, optional on the server; the turbo sound is
+Amit's smaller engine recording (`turbo.mp3`, 69 KB) with the synthesized
+sweep as a fallback that will not fire.
+
+**Not yet seen by anyone.** The browser extension was down for both the
+implementer and the planner, so the six visual commits are verified only by
+tests and the build. Amit's eye is the acceptance test: the seven-point list
+in the implementer's report (runner, faces, gait against the road, weather
+rolling in, scenery, the tape arriving at zero, turbo at twenty).
+
 ### Done when
 
 - A run on PC and on a phone shows: a runner with a face who grins at a long

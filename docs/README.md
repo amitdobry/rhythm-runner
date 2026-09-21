@@ -29,6 +29,6 @@ Also read `../CLAUDE.md` (rules for Claude Code sessions) and `../README.md`
 | M5 - polish and hand-over      | done                      | PHASE-1-BUILD.md, section M5         |
 | M6 - conversion foundation     | done                      | PHASE-2-BUILD.md, section M6         |
 | M7 - replay and identity       | done                      | PHASE-2-BUILD.md, section M7         |
-| M8 - character, scenery, turbo | built, awaiting play-test | PHASE-2-BUILD.md, section M8         |
+| M8 - character, scenery, turbo | done, awaiting Amit's eye | PHASE-2-BUILD.md, section M8         |
 
 Production: <https://rhythm-runner-eight.vercel.app>
