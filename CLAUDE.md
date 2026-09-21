@@ -46,7 +46,8 @@ user; never create it with a made-up value and never print its contents.
 - Every collection the app uses is listed in `COLLECTIONS` in
   `server/src/database/mongo.ts`, with its indexes in `ensureIndexes`.
 - Game logic in `client/src/game/` is pure: no DOM, no React, no `Date.now()`.
-  Only `render.ts` and `audio.ts` may touch browser APIs.
+  Only `render.ts`, `audio.ts`, `platform.ts` and `useGameLoop.ts` may touch
+  browser APIs.
 - Comments explain _why_ for a child or a beginner; short and plain English.
 - Commit messages: one line, imperative, what changed and where. Body optional.
   End every commit with the Co-Authored-By line the session provides.
