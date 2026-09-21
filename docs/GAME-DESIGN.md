@@ -129,14 +129,14 @@ the leaderboard for your device, PC or phone, under your nickname.
 ## What is deliberately not here yet
 
 Obstacles to jump, power-ups, more levels, music, other runners on the same
-road, art. Those are for the students in Phase 2. The engine is built so each
-of those is an addition, not a rewrite: a new terrain is one line in the
-`TERRAIN` table, a new level is a new list of segments.
+road, real art. Those come in Phase 2, once level one is fun. The engine is
+built so each of those is an addition, not a rewrite: a new terrain is one line
+in the `TERRAIN` table, a new level is a new list of segments.
 
-## Ideas for the students to try first
+## Tuning ideas to try once it plays
 
-1. Make the base pace **500 ms**. Is it harder or just faster?
-2. Add a terrain: `mud` with pace **x1.4** and **3** energy per step. Draw it brown.
-3. Build level 2: a course that is all hills.
-4. Make a Skipped step cost energy too. Is that fair?
-5. Turn `requireAlternatingFeet` off for the youngest players. What changes?
+1. Base pace **500 ms**: harder, or just faster?
+2. A `mud` terrain with pace **x1.4** and **3** energy per step, drawn brown.
+3. Level 2: a course that is all hills.
+4. A Skipped step that costs energy too. Fairer, or just meaner?
+5. `requireAlternatingFeet` off as an "easy" mode for the youngest players.

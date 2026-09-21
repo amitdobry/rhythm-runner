@@ -1,6 +1,8 @@
 # Rhythm Runner - instructions for Claude Code
 
-A small competitive running game for a children's AI coding workshop.
+A small competitive running game, built with AI, that serves as the public
+demo for a children's AI coding workshop. The game is the advert, so fun and
+polish matter more than teaching value.
 React + Vite client, Express 5 + MongoDB server, hosted on Vercel.
 Production: <https://rhythm-runner-eight.vercel.app> (deploys on every push to `main`).
 

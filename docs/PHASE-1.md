@@ -10,9 +10,10 @@ also gives the project its own home on Vercel, separate from every other
 project on the account.
 
 Phase 1 is planned here and built by a Claude Code session following
-`docs/PHASE-1-BUILD.md`. The students meet the game in Phase 2 and change it
-from there, so everything tunable lives in one config file and every game rule
-is a plain, named function.
+`docs/PHASE-1-BUILD.md`. The game is the public demo for the workshop and its
+main advert, so it has to be fun first. Everything tunable lives in one config
+file and every game rule is a plain, named function, so tuning and new levels
+are quick to add.
 
 ---
 
@@ -52,7 +53,7 @@ Costs of that choice, accepted:
 
 ---
 
-## The game (baseline the students will extend)
+## The game (level one)
 
 The full rules, in plain words, are in `docs/GAME-DESIGN.md`. In short:
 
@@ -86,8 +87,8 @@ ignored for one interval, then energy resets to 30 and a fresh step is due.
 at 0-9 combo, x2 at 10-19, x3 at 20+). Results show distance, score, best
 combo, accuracy and rank on the PC or phone leaderboard.
 
-All numbers above live in `client/src/game/config.ts` and are the first thing
-the students will change in Phase 2.
+All numbers above live in `client/src/game/config.ts` and are where tuning
+happens.
 
 ### Architecture on the client
 
@@ -217,21 +218,23 @@ Done when: two different nicknames appear on the production leaderboard.
 
 ---
 
-## Deferred to Phase 2 (with the students)
+## Deferred to Phase 2 (making the demo sell)
 
-- their own runner art, props, backgrounds and a name for the runner;
-- new terrains (mud, ice, sand) as rows in the `TERRAIN` table, new weathers,
-  and new levels as new segment lists; a level picker;
+- proper art: a runner with character, props, backgrounds, a name;
+- more levels (new segment lists) and new terrains (mud, ice, sand) as rows in
+  the `TERRAIN` table; a level picker;
 - obstacles to jump, power-ups, night mode;
 - an "expert" mode with the pace guide off, and its own leaderboard;
-- a PIN or room code so a nickname cannot be borrowed;
+- a "made with AI in the workshop" panel linking to the course sign-up;
+- share-your-score: a results card to screenshot or send;
+- a PIN so a nickname cannot be borrowed, if leaderboard cheating appears;
 - live head-to-head races (needs an always-on API host);
-- sounds beyond the clicks, and music with a licence;
-- ESLint, if their code starts to need it.
+- sounds beyond the clicks, and music with a licence.
 
 ## Open points for Amit
 
-- Vercel Hobby or the Pro team? Depends on whether the workshop is paid.
+- Vercel Hobby or the Pro team? The demo advertises a paid course, which is
+  commercial use under Vercel's Hobby terms. Pro is 20 USD per month.
 - 60 seconds per run is a guess. Shorter for six-year-olds?
 - The pace guide (pulsing footprint and click) is always on in Phase 1. Keep it
   that way for the leaflet demo, or make "guide off" the real game later?

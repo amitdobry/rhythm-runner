@@ -1,13 +1,13 @@
 # Rhythm Runner
 
-A small competitive running game that the students will design and build in the
-AI coding workshop. A runner stays in place while the road and scenery move; the
-player presses at the right rhythm, manages speed and energy, and earns a score.
+A small competitive running game, built with AI, that is the public demo for
+Amit's AI coding workshop for children. The game is the advert: if it is fun,
+it sells the course by itself. A two-footed runner stays in place while the
+road and scenery move; the player steps left, right, left, right at the pace
+the terrain and weather ask for, manages speed and energy, and earns a score.
 
-**Right now there is no game.** This is Phase 0: a clean, verified foundation.
-What exists is a server, a database connection, a front door (pick a nickname),
-and one deliberately empty protected screen. See `docs/PHASE-0.md` for what was
-decided and why.
+Status: Phase 0 (foundation) and the game engine are done; the playable screen,
+scores and leaderboards are being built. See `docs/README.md` for the plan.
 
 ## Coming from the workshop leaflet?
 
@@ -116,6 +116,6 @@ collection, and hands the browser a random token in a cookie that JavaScript
 cannot read. Every screen inside the app asks "who am I?" through that cookie.
 Log out deletes the session.
 
-That is a workshop identity, not an account. Anyone who knows a nickname can
-enter as it. That is fine for a classroom and is on the list to revisit with the
-students when scores and leaderboards arrive.
+That is a nickname, not an account. Anyone who knows a nickname can enter as
+it. That is fine for a public demo with nothing to protect; a PIN can be added
+later if leaderboard cheating becomes a problem.

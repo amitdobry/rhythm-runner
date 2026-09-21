@@ -15,8 +15,8 @@ How the pieces of Rhythm Runner fit together, and why they are split this way.
 
 - **Client** - everything the player sees. Talks to the server only through
   `client/src/services/api.ts`. Game logic (`client/src/game/`) is pure
-  TypeScript with no DOM, so it can be unit-tested in Node and, later, read by
-  the students without React knowledge.
+  TypeScript with no DOM, so it can be unit-tested in Node and tuned without
+  touching anything that deals with the browser.
 - **Server** - the rules the browser must not be trusted with: who is playing,
   which scores are real, what the leaderboard says. One Express app, built by
   `createApp()` in `server/src/app.ts`, used in three ways: local dev
