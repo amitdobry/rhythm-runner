@@ -574,3 +574,29 @@ button.primary.big {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------- sound */
+
+.mute-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: inherit;
+  line-height: 0;
+}
+
+.play-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* On the dark overlay the button borrows the overlay's colours. */
+.overlay .mute-button {
+  color: #f2f4f8;
+  border-color: rgba(242, 244, 248, 0.5);
+}

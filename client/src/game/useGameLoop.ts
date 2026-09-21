@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { Foot, GameConfig } from './config';
 import { createGame, startRun, step, tick, type GameState, type Phase } from './engine';
-import { createMetronome, type Metronome } from './audio';
+import { createMetronome, readMuted, type Metronome } from './audio';
 import { render } from './render';
 
 const STEP_MS = 10; // the simulation always moves in 10 ms steps
@@ -14,6 +14,8 @@ const COUNTDOWN_MS = 3000;
 
 export interface GameLoop {
   phase: Phase;
+  muted: boolean;
+  setMuted(muted: boolean): void;
   finished: GameState | null; // the last moment of a finished run, for the results
   start(): void;
   restart(): void;
@@ -57,6 +59,7 @@ export function useGameLoop(
   const [phase, setPhase] = useState<Phase>('ready');
   const [finished, setFinished] = useState<GameState | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [muted, setMutedState] = useState<boolean>(() => readMuted());
 
   const configRef = useRef(config);
   const stateRef = useRef<GameState>(createGame(config));
@@ -92,6 +95,12 @@ export function useGameLoop(
     pendingFeet.current.push(foot);
   }, []);
 
+  /** One tap of silence, for a corridor or a classroom. */
+  const setMuted = useCallback((next: boolean) => {
+    setMutedState(next);
+    metronomeRef.current?.setMuted(next);
+  }, []);
+
   const start = useCallback(() => {
     if (!unlockedRef.current) {
       metronomeRef.current?.unlock();
@@ -113,6 +122,7 @@ export function useGameLoop(
     if (!canvas) return;
 
     const metronome = createMetronome();
+    metronome.setMuted(readMuted());
     metronomeRef.current = metronome;
 
     const resize = () => {
@@ -273,5 +283,5 @@ export function useGameLoop(
     };
   }, [canvasRef, config, listenToInput, pressFoot]);
 
-  return { phase, finished, start, restart: start, pressFoot, countdown };
+  return { phase, finished, muted, setMuted, start, restart: start, pressFoot, countdown };
 }

@@ -14,6 +14,7 @@ import { TutorialOverlay } from '../components/TutorialOverlay';
 import { WorkshopReveal } from '../components/WorkshopReveal';
 import { BehindTheGame } from '../components/BehindTheGame';
 import { NicknameForm } from '../components/NicknameForm';
+import { MuteButton } from '../components/MuteButton';
 
 const TUTORIAL_DONE_KEY = 'rr_tutorial_done';
 const TUTORIAL_CHEER_MS = 700;
@@ -41,9 +42,11 @@ export function PlayPage() {
   );
   const practising = tutorial !== null;
 
-  const { phase, finished, start, restart, pressFoot, countdown } = useGameLoop(canvasRef, config, {
-    listenToInput: !practising,
-  });
+  const { phase, finished, muted, setMuted, start, restart, pressFoot, countdown } = useGameLoop(
+    canvasRef,
+    config,
+    { listenToInput: !practising }
+  );
 
   const [saved, setSaved] = useState<Saved>({ status: 'idle' });
   const [askNickname, setAskNickname] = useState(false);
@@ -171,7 +174,10 @@ export function PlayPage() {
       {showHeader && (
         <header className="play-header">
           <Link to="/">{T.home}</Link>
-          <span className="muted">{player?.nickname}</span>
+          <span className="play-header-right">
+            <span className="muted">{player?.nickname}</span>
+            <MuteButton muted={muted} onToggle={() => setMuted(!muted)} />
+          </span>
         </header>
       )}
 
@@ -202,6 +208,7 @@ export function PlayPage() {
             <button className="quiet-link on-dark" onClick={() => setTutorial(createTutorial())}>
               {T.practiceAgain}
             </button>
+            <MuteButton muted={muted} onToggle={() => setMuted(!muted)} />
           </div>
         )}
 

@@ -67,6 +67,9 @@ export const T = Object.freeze({
   behindClose: 'סגירה',
   builtWith: 'נבנה על ידי עמית עם Claude Code',
 
+  soundOn: 'הקול פועל',
+  soundOff: 'הקול כבוי',
+
   // Short popups over the runner, where a whole sentence would not fit.
   popupSkipped: 'פספוס',
   popupStumble: 'אופס!',

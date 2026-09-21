@@ -19,7 +19,27 @@ export interface Metronome {
   click(kind: ClickKind): void;
   cue(name: CueName): void;
   music(on: boolean): void;
+  setMuted(muted: boolean): void;
   dispose(): void;
+}
+
+/** Remembered so a silenced demo stays silent on the next visit. */
+const MUTED_KEY = 'rr_muted';
+
+export function readMuted(): boolean {
+  try {
+    return window.localStorage.getItem(MUTED_KEY) === '1';
+  } catch {
+    return false; // sound is on by default
+  }
+}
+
+export function rememberMuted(muted: boolean): void {
+  try {
+    window.localStorage.setItem(MUTED_KEY, muted ? '1' : '0');
+  } catch {
+    // forgetting the choice is not worth an error
+  }
 }
 
 /** One-off moments that bracket a run, rather than answering a step. */
@@ -46,6 +66,15 @@ const TICK_VOLUME = 0.06;
 const TICK_HZ = 880;
 const TICK_SECONDS = 0.04;
 
+// Three things can go wrong at almost the same moment. Only the worst of them
+// is heard; the picture on screen still shows all of it.
+const FAILURE_RANK: Record<string, number> = { stumble: 3, miss: 2, sad: 1 };
+const FAILURE_GAP_MS = 300;
+
+// A start cue longer than the countdown would run into the first step.
+const START_CUE_MAX_S = 3;
+const START_CUE_FADE_S = 0.2;
+
 /** Does nothing at all. Used when the browser has no Web Audio. */
 function silentMetronome(): Metronome {
   return {
@@ -53,6 +82,7 @@ function silentMetronome(): Metronome {
     click() {},
     cue() {},
     music() {},
+    setMuted() {},
     dispose() {},
   };
 }
@@ -69,6 +99,10 @@ export function createMetronome(): Metronome {
   let context: AudioContext | null = null;
   let musicElement: HTMLAudioElement | null = null;
   let alive = true;
+  let muted = readMuted();
+  let musicWanted = false;
+  let lastFailureRank = 0;
+  let lastFailureAt = 0;
 
   // Start downloading straight away: bytes need no permission, only sound does.
   const bytes = new Map<string, Promise<ArrayBuffer | null>>();
@@ -117,13 +151,14 @@ export function createMetronome(): Metronome {
    * to decode, rather than giving up - otherwise the very first sound of the
    * game, the one before the countdown, is always the one nobody hears.
    */
-  const play = (name: string, volume: number): void => {
+  const play = (name: string, volume: number, fadeAfterS?: number): void => {
+    if (muted) return;
     void (async () => {
       try {
         if (!context) return;
         if (context.state !== 'running') await context.resume();
         const audio = await buffer(name);
-        if (!audio || !context || !alive) return;
+        if (!audio || !context || !alive || muted) return;
 
         const source = context.createBufferSource();
         const gain = context.createGain();
@@ -131,16 +166,40 @@ export function createMetronome(): Metronome {
         source.buffer = audio;
         source.connect(gain);
         gain.connect(context.destination);
-        source.start();
+
+        const now = context.currentTime;
+        // A recording longer than the countdown is faded out rather than
+        // allowed to play over the runner's first step.
+        if (fadeAfterS !== undefined && audio.duration > fadeAfterS) {
+          gain.gain.setValueAtTime(volume, now + fadeAfterS - START_CUE_FADE_S);
+          gain.gain.linearRampToValueAtTime(0.0001, now + fadeAfterS);
+          source.start(now);
+          source.stop(now + fadeAfterS);
+        } else {
+          source.start(now);
+        }
       } catch {
         // a missed sound must never stop the game
       }
     })();
   };
 
+  /**
+   * One failure sound at a time. A stumble drowns a wrong step, which drowns a
+   * missed beat, when they land within a breath of each other.
+   */
+  const playFailure = (name: string): void => {
+    const rank = FAILURE_RANK[name] ?? 0;
+    const now = Date.now();
+    if (now - lastFailureAt < FAILURE_GAP_MS && rank < lastFailureRank) return;
+    lastFailureRank = rank;
+    lastFailureAt = now;
+    play(name, name === 'sad' ? EFFECT_VOLUME : EFFECT_VOLUME);
+  };
+
   /** The pace tick, made by the browser: rise fast, fall away. */
   const playTick = () => {
-    if (!context || context.state !== 'running') return;
+    if (muted || !context || context.state !== 'running') return;
     const now = context.currentTime;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
@@ -169,18 +228,20 @@ export function createMetronome(): Metronome {
 
     click(kind) {
       if (kind === 'due') playTick();
-      else if (kind === 'skipped') play('sad', EFFECT_VOLUME);
-      else if (kind === 'stumble') play('stumble', EFFECT_VOLUME);
+      else if (kind === 'skipped') playFailure('sad');
+      else if (kind === 'stumble') playFailure('stumble');
+      else if (kind === 'miss') playFailure('miss');
       else play(kind, EFFECT_VOLUME);
     },
 
     cue(name) {
-      play(name, EFFECT_VOLUME);
+      play(name, EFFECT_VOLUME, name === 'start' ? START_CUE_MAX_S : undefined);
     },
 
     music(on) {
+      musicWanted = on;
       try {
-        if (!on) {
+        if (!on || muted) {
           musicElement?.pause();
           return;
         }
@@ -194,6 +255,13 @@ export function createMetronome(): Metronome {
       } catch {
         // no music, still a game
       }
+    },
+
+    setMuted(next) {
+      muted = next;
+      rememberMuted(next);
+      if (muted) musicElement?.pause();
+      else if (musicWanted) void musicElement?.play().catch(() => {});
     },
 
     dispose() {
