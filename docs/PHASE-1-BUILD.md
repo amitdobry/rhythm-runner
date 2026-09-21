@@ -711,8 +711,14 @@ Behaviour of the player routes must not change (existing tests stay green).
 - `PlayPage`: on `finished`, submit once; results overlay shows "Rank #n on
   PC" / "on mobile" or a quiet "Score not saved" if the request fails. Never
   block "Run again".
-- `HomePage`: personal best for each platform and run count; a leaderboard
-  with two tabs, PC and Mobile, defaulting to the detected platform; Play button.
+- `HomePage`: the Play card stays as it is. **Directly below it**, in the empty
+  space under "Server: ok · Database: connected", a new panel titled
+  "High scores": two tabs, PC and Mobile, defaulting to the detected platform;
+  a table of rank, name, score, distance for the top 10; the current player's
+  row highlighted if present; under the table one line with the player's own
+  best on that platform and run count ("Your best: 1 240 · 7 runs"). Empty
+  state: "No runs yet. Be the first." Fits a phone screen without horizontal
+  scroll; names are cut with an ellipsis at 14 characters.
 
 ### Smoke script
 
