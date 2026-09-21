@@ -124,7 +124,9 @@ flat/clear 60  ->  uphill 40  ->  downhill 40  ->  flat/rain 50  ->  water 30
 
 After **60 seconds** the run stops. You see distance, score, best combo and
 accuracy (good steps divided by all steps and skips). Your best score goes on
-the leaderboard for your device, PC or phone, under your nickname.
+the leaderboard for your device, PC or phone, under your nickname, and the
+overlay tells you where you now stand on that board. The boards are public:
+you can read them on the enter screen before picking a nickname at all.
 
 ## What is deliberately not here yet
 

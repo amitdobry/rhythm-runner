@@ -1,6 +1,6 @@
 # Phase 1 - First Playable Level, Hosted
 
-Date: 2026-09-21. Status: M1 done, M2 next.
+Date: 2026-09-21. Status: Phase 1 complete, M1 to M5 done.
 
 Phase 1 turns the Phase 0 foundation into a game a leaflet visitor can open in
 a browser and play for one minute: a two-footed runner on a road with hills,
@@ -222,11 +222,30 @@ the player, smoke script writing to production) are M5 step 0 in
 
 ### M5. Ship and hand over
 
+0. Step 0, from the M4 review: rank is the player s standing, not the run s;
+   the smoke script writes to the throwaway database `rhythm_runner_smoke`
+   and falls back to an unreachable address when there is no connection
+   string, so its no-database branch is really exercised.
 1. Mobile polish: safe areas, no page scroll, one-handed reach, upright hint.
 2. README: how to play, how to run, the config file for tuning.
 3. This document, `GAME-DESIGN.md` and `API.md` updated with what was actually
    built and verified.
 4. Memory note for Claude Code sessions updated.
+
+Done when: everything above is pushed, production is verified and the working
+tree is clean.
+
+**Done 2026-09-21** (commits `acbc18a` to the head of `main`): 22 server tests,
+45 client tests, typecheck clean, production verified (health connected, the
+leaderboard route answering, `/enter`, `/` and `/play` all loading). `PlayPage`
+no longer re-renders sixty times a second: `useGameLoop` publishes only a
+phase change, and the canvas reads the live state from a ref.
+
+One check is outstanding: `server/.env` did not exist on the build machine, so
+the smoke script could only be run in its no-database mode (which passes, and
+which step 0 made reachable for the first time). The two-run rank assertion
+that proves the rank fix is written but has never been run against a real
+database. Run `npm run smoke` once the file is in place.
 
 ---
 
