@@ -475,3 +475,130 @@ body.playing {
   border: 1px solid var(--line);
   font-weight: 600;
 }
+
+/* ---------------------------------------------------------------- practice */
+
+.tutorial {
+  gap: 18px;
+  /* the overlay itself is the target: a tap on either half is a foot */
+  touch-action: none;
+  cursor: pointer;
+}
+
+/* Physical left stays physically left, whichever way the words read. */
+.tutorial-feet {
+  direction: ltr;
+  display: flex;
+  gap: 40px;
+}
+
+.tutorial-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: rgba(242, 244, 248, 0.45);
+  font-weight: 700;
+  transform: scale(1);
+}
+
+.tutorial-foot.due {
+  color: #ffd23f;
+  animation: foot-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes foot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-foot.due {
+    animation: none;
+  }
+}
+
+.tutorial-foot-name {
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+}
+
+/* ---------------------------------------------------------------- results */
+
+.overlay-results {
+  gap: 10px;
+  overflow-y: auto;
+  justify-content: flex-start;
+  padding-block: 20px;
+}
+
+button.primary.big {
+  font-size: 1.2rem;
+  font-weight: 900;
+  padding: 12px 28px;
+}
+
+.save-button {
+  background: transparent;
+  color: #f2f4f8;
+  border-color: rgba(242, 244, 248, 0.6);
+}
+
+.save-step {
+  width: 100%;
+  max-width: 320px;
+  text-align: start;
+}
+.save-step label {
+  color: #f2f4f8;
+}
+
+.quiet-link.on-dark {
+  color: rgba(242, 244, 248, 0.75);
+}
+
+/* the workshop reveal: after the numbers, never over them */
+.reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 14px 16px;
+  max-width: 420px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  animation: reveal-in 0.5s ease-out both;
+}
+
+.reveal h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.reveal p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+}

@@ -1,52 +1,157 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePlayer } from '../player/PlayerContext';
-import { submitScore } from '../services/api';
-import { configForPlatform, type Platform } from '../game/config';
-import { summarize, type GameState } from '../game/engine';
+import { submitScore, type RunSummary } from '../services/api';
+import { configForPlatform, type Foot, type Platform } from '../game/config';
+import { summarize } from '../game/engine';
 import { detectPlatform, readOverride, rememberPlatform } from '../game/platform';
 import { useGameLoop } from '../game/useGameLoop';
+import { createTutorial, tutorialPress, type TutorialState } from '../game/tutorial';
+import { T, fill, formatNumber } from '../text/he';
+import { currentRef, track } from '../analytics/analytics';
+import { Footprint } from '../components/Footprint';
+import { TutorialOverlay } from '../components/TutorialOverlay';
+import { WorkshopReveal } from '../components/WorkshopReveal';
+import { BehindTheGame } from '../components/BehindTheGame';
+import { NicknameForm } from '../components/NicknameForm';
+
+const TUTORIAL_DONE_KEY = 'rr_tutorial_done';
+const TUTORIAL_CHEER_MS = 700;
+const REVEAL_DELAY_MS = 1200;
+const COUNT_UP_MS = 600;
+
+type Saved =
+  | { status: 'idle' }
+  | { status: 'saving' }
+  | { status: 'saved'; rank: number }
+  | { status: 'failed' };
 
 /** The screen you play on. Two layouts: keys on a PC, two pads on a phone. */
 export function PlayPage() {
   const { player } = usePlayer();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // What the player asked for wins; otherwise we guess from the device.
   const [platform, setPlatform] = useState<Platform>(() => readOverride() ?? detectPlatform());
   const config = useMemo(() => configForPlatform(platform), [platform]);
 
-  const { phase, finished, start, restart, pressFoot, countdown } = useGameLoop(canvasRef, config);
+  const [tutorial, setTutorial] = useState<TutorialState | null>(() =>
+    tutorialWasDone() ? null : createTutorial()
+  );
+  const practising = tutorial !== null;
 
-  // The run is sent once, when it ends. A failure is quiet: it must never
-  // stand between a child and the next run.
+  const { phase, finished, start, restart, pressFoot, countdown } = useGameLoop(canvasRef, config, {
+    listenToInput: !practising,
+  });
+
   const [saved, setSaved] = useState<Saved>({ status: 'idle' });
+  const [askNickname, setAskNickname] = useState(false);
+  const [showReveal, setShowReveal] = useState(false);
+  const [showBehind, setShowBehind] = useState(false);
+  const pendingRun = useRef<RunSummary | null>(null);
   const sentRef = useRef(false);
 
-  useEffect(() => {
-    if (phase === 'ready') {
-      sentRef.current = false;
-      setSaved({ status: 'idle' });
-      return;
-    }
-    if (phase !== 'finished' || finished === null || sentRef.current) return;
-    sentRef.current = true;
-    setSaved({ status: 'saving' });
-    submitScore(summarize(finished))
-      .then((result) => setSaved({ status: 'saved', rank: result.rank }))
-      .catch(() => setSaved({ status: 'failed' }));
-  }, [phase, finished]);
+  const isMobile = platform === 'mobile';
+  const running = phase === 'running';
+  const showHeader = !(isMobile && running) && !practising;
 
-  // While the game is open the page itself must not move: no scrolling and
-  // no pull-to-refresh when a thumb misses a pad.
+  // The page itself must not move while a thumb is hunting for a pad.
   useEffect(() => {
     document.body.classList.add('playing');
     return () => document.body.classList.remove('playing');
   }, []);
 
-  const isMobile = platform === 'mobile';
-  const running = phase === 'running';
-  const showHeader = !(isMobile && running);
+  useEffect(() => {
+    if (practising) track('tutorial_started');
+  }, [practising]);
+
+  // --- the practice ----------------------------------------------------
+
+  const finishTutorial = useCallback(
+    (completed: boolean) => {
+      rememberTutorialDone();
+      track(completed ? 'tutorial_completed' : 'tutorial_skipped');
+      setTutorial(null);
+      if (completed) start();
+    },
+    [start]
+  );
+
+  const handleFoot = useCallback(
+    (foot: Foot) => {
+      if (tutorial) {
+        setTutorial((current) => (current ? tutorialPress(current, foot) : current));
+        return;
+      }
+      pressFoot(foot);
+    },
+    [tutorial, pressFoot]
+  );
+
+  const tutorialDone = tutorial?.done ?? false;
+  useEffect(() => {
+    if (!tutorialDone) return;
+    const timer = window.setTimeout(() => finishTutorial(true), TUTORIAL_CHEER_MS);
+    return () => window.clearTimeout(timer);
+  }, [tutorialDone, finishTutorial]);
+
+  // --- counting the run ------------------------------------------------
+
+  useEffect(() => {
+    if (phase === 'running') track('run_started');
+  }, [phase]);
+
+  // A run somebody walked away from is worth knowing about.
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+  useEffect(() => {
+    const report = () => {
+      if (phaseRef.current === 'running') track('run_abandoned', { atSeconds: 0 });
+    };
+    window.addEventListener('pagehide', report);
+    return () => {
+      window.removeEventListener('pagehide', report);
+      report();
+    };
+  }, []);
+
+  // --- the results -----------------------------------------------------
+
+  useEffect(() => {
+    if (phase === 'ready') {
+      sentRef.current = false;
+      pendingRun.current = null;
+      setSaved({ status: 'idle' });
+      setAskNickname(false);
+      setShowReveal(false);
+      return;
+    }
+    if (phase !== 'finished' || finished === null || sentRef.current) return;
+    sentRef.current = true;
+
+    const summary = summarize(finished);
+    pendingRun.current = summary;
+    track('run_completed', {
+      score: summary.score,
+      distance: summary.distance,
+      accuracy: Math.round(summary.accuracy * 100) / 100,
+      bestCombo: summary.bestCombo,
+      skipped: summary.counts.skipped,
+      misses: summary.counts.miss,
+      platform: summary.platform,
+    });
+
+    if (player) void send(summary, setSaved);
+  }, [phase, finished, player]);
+
+  // The reveal comes after the numbers have landed, never over them.
+  useEffect(() => {
+    if (phase !== 'finished') return;
+    const timer = window.setTimeout(() => {
+      setShowReveal(true);
+      track('workshop_shown');
+    }, REVEAL_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
 
   const choosePlatform = (next: Platform) => {
     setPlatform(next);
@@ -57,7 +162,7 @@ export function PlayPage() {
     <main className={isMobile ? 'play play-mobile' : 'play play-pc'}>
       {showHeader && (
         <header className="play-header">
-          <Link to="/">&larr; Back</Link>
+          <Link to="/">{T.home}</Link>
           <span className="muted">{player?.nickname}</span>
         </header>
       )}
@@ -65,150 +170,243 @@ export function PlayPage() {
       <div className="play-stage">
         <canvas ref={canvasRef} className="play-canvas" />
 
+        {tutorial && (
+          <TutorialOverlay
+            state={tutorial}
+            onFoot={handleFoot}
+            onSkip={() => finishTutorial(false)}
+          />
+        )}
+
         {countdown !== null && (
           <div className="overlay overlay-countdown">
-            <span className="countdown">{countdown}</span>
+            <span className="countdown num">{countdown}</span>
           </div>
         )}
 
-        {phase === 'ready' && countdown === null && (
+        {!practising && phase === 'ready' && countdown === null && (
           <div className="overlay">
-            <h2>Rhythm Runner</h2>
-            <p className="overlay-lead">
-              {isMobile
-                ? 'Tap left, tap right, at the pace of the road. Ready?'
-                : 'Left foot: ← or F. Right foot: → or J. Match the pace of the road. Ready?'}
-            </p>
+            <h2>{T.brand}</h2>
+            <p className="overlay-lead">{isMobile ? T.mobileHowTo : T.pcHowTo}</p>
             <div className="platform-toggle">
               <button
                 className={platform === 'pc' ? 'chosen' : ''}
                 onClick={() => choosePlatform('pc')}
               >
-                PC
+                {T.tabPc}
               </button>
               <button
                 className={platform === 'mobile' ? 'chosen' : ''}
                 onClick={() => choosePlatform('mobile')}
               >
-                Mobile
+                {T.tabMobile}
               </button>
             </div>
             <button className="primary" onClick={start}>
-              Start
+              {T.start}
+            </button>
+            <button className="quiet-link on-dark" onClick={() => setTutorial(createTutorial())}>
+              {T.practiceAgain}
             </button>
           </div>
         )}
 
         {phase === 'finished' && finished !== null && (
-          <div className="overlay">
-            <h2>Run finished</h2>
-            <ResultsTable state={finished} />
-            <ScoreNote saved={saved} platform={platform} />
+          <div className="overlay overlay-results">
+            <h2>{T.runFinished}</h2>
+            <Results summary={summarize(finished)} />
+
+            <SaveStep
+              saved={saved}
+              signedIn={Boolean(player)}
+              asking={askNickname}
+              onAsk={() => {
+                track('save_pressed');
+                setAskNickname(true);
+              }}
+              onEntered={() => {
+                setAskNickname(false);
+                const summary = pendingRun.current;
+                if (summary) void send(summary, setSaved);
+              }}
+            />
+
             <div className="overlay-buttons">
-              <button className="primary" onClick={restart}>
-                Run again
+              <button
+                className="primary big"
+                onClick={() => {
+                  track('run_again');
+                  restart();
+                }}
+              >
+                {T.runAgain}
               </button>
               <Link className="button-link" to="/">
-                Home
+                {T.home}
               </Link>
             </div>
+
+            {showReveal && (
+              <WorkshopReveal refCode={currentRef()} onCtaClick={() => track('workshop_clicked')} />
+            )}
+
+            <button
+              className="quiet-link on-dark"
+              onClick={() => {
+                track('behind_opened');
+                setShowBehind(true);
+              }}
+            >
+              {T.behindLink}
+            </button>
           </div>
         )}
       </div>
 
-      {isMobile && <p className="rotate-hint">Hold your phone upright to play.</p>}
+      {isMobile && <p className="rotate-hint">{T.landscapeHint}</p>}
 
       {isMobile && (
         <div className="play-pads">
           <button
             className="pad"
-            aria-label="Left foot"
+            aria-label={T.left}
             onPointerDown={(event) => {
               event.preventDefault();
-              pressFoot('left');
+              handleFoot('left');
             }}
           >
             <Footprint side="left" />
-            <span>LEFT</span>
+            <span>{T.left}</span>
           </button>
           <button
             className="pad"
-            aria-label="Right foot"
+            aria-label={T.right}
             onPointerDown={(event) => {
               event.preventDefault();
-              pressFoot('right');
+              handleFoot('right');
             }}
           >
             <Footprint side="right" />
-            <span>RIGHT</span>
+            <span>{T.right}</span>
           </button>
         </div>
       )}
+
+      {showBehind && <BehindTheGame onClose={() => setShowBehind(false)} />}
     </main>
   );
 }
 
-function ResultsTable({ state }: { state: GameState }) {
-  const summary = summarize(state);
+async function send(summary: RunSummary, setSaved: (saved: Saved) => void): Promise<void> {
+  setSaved({ status: 'saving' });
+  try {
+    const result = await submitScore(summary);
+    setSaved({ status: 'saved', rank: result.rank });
+    track('score_saved');
+  } catch {
+    setSaved({ status: 'failed' });
+  }
+}
+
+/** The numbers, with score and distance counting up so they feel earned. */
+function Results({ summary }: { summary: RunSummary }) {
+  const distance = useCountUp(summary.distance);
+  const score = useCountUp(summary.score);
+
   return (
     <dl className="results">
       <div>
-        <dt>Distance</dt>
-        <dd>{summary.distance} m</dd>
+        <dt>{T.distance}</dt>
+        <dd className="num">
+          {formatNumber(distance)} {T.meters}
+        </dd>
       </div>
       <div>
-        <dt>Score</dt>
-        <dd>{summary.score}</dd>
+        <dt>{T.score}</dt>
+        <dd className="num">{formatNumber(score)}</dd>
       </div>
       <div>
-        <dt>Best combo</dt>
-        <dd>{summary.bestCombo}</dd>
+        <dt>{T.bestCombo}</dt>
+        <dd className="num">{formatNumber(summary.bestCombo)}</dd>
       </div>
       <div>
-        <dt>Accuracy</dt>
-        <dd>{Math.round(summary.accuracy * 100)}%</dd>
+        <dt>{T.accuracy}</dt>
+        <dd className="num">{Math.round(summary.accuracy * 100)}%</dd>
       </div>
       <div>
-        <dt>Played on</dt>
-        <dd>{summary.platform === 'pc' ? 'PC' : 'Phone'}</dd>
+        <dt>{T.device}</dt>
+        <dd>{summary.platform === 'pc' ? T.playedOnPc : T.playedOnMobile}</dd>
       </div>
     </dl>
   );
 }
 
-type Saved =
-  | { status: 'idle' }
-  | { status: 'saving' }
-  | { status: 'saved'; rank: number }
-  | { status: 'failed' };
+/** Counts from 0 to the real number, slowing as it arrives. */
+function useCountUp(target: number): number {
+  const [value, setValue] = useState(0);
 
-function ScoreNote({ saved, platform }: { saved: Saved; platform: Platform }) {
-  if (saved.status === 'saving') return <p className="score-note">Saving your score...</p>;
-  if (saved.status === 'saved') {
-    return (
-      <p className="score-note">
-        Rank #{saved.rank} on {platform === 'pc' ? 'PC' : 'mobile'}
-      </p>
-    );
-  }
-  if (saved.status === 'failed') return <p className="score-note muted">Score not saved</p>;
-  return null;
+  useEffect(() => {
+    let frame = 0;
+    const startedAt = performance.now();
+    const step = (now: number) => {
+      const through = Math.min(1, (now - startedAt) / COUNT_UP_MS);
+      const eased = 1 - (1 - through) * (1 - through); // ease out
+      setValue(Math.round(target * eased));
+      if (through < 1) frame = window.requestAnimationFrame(step);
+    };
+    frame = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(frame);
+  }, [target]);
+
+  return value;
 }
 
-/** A simple footprint drawn with shapes, so the pads need no pictures. */
-function Footprint({ side }: { side: 'left' | 'right' }) {
+function SaveStep({
+  saved,
+  signedIn,
+  asking,
+  onAsk,
+  onEntered,
+}: {
+  saved: Saved;
+  signedIn: boolean;
+  asking: boolean;
+  onAsk: () => void;
+  onEntered: () => void;
+}) {
+  if (saved.status === 'saving') return <p className="score-note">{T.savingScore}</p>;
+  if (saved.status === 'saved') {
+    return <p className="score-note">{fill(T.rank, { n: formatNumber(saved.rank) })}</p>;
+  }
+  if (saved.status === 'failed') return <p className="score-note muted">{T.scoreNotSaved}</p>;
+
+  if (signedIn) return null; // already on its way to the board
+  if (asking) {
+    return (
+      <div className="save-step">
+        <NicknameForm onEntered={onEntered} />
+      </div>
+    );
+  }
   return (
-    <svg
-      viewBox="0 0 40 56"
-      width="34"
-      height="48"
-      aria-hidden="true"
-      style={{ transform: side === 'left' ? 'scaleX(-1)' : undefined }}
-    >
-      <ellipse cx="20" cy="34" rx="12" ry="18" fill="currentColor" />
-      <circle cx="10" cy="11" r="4.5" fill="currentColor" />
-      <circle cx="19" cy="7" r="4" fill="currentColor" />
-      <circle cx="27" cy="9" r="3.5" fill="currentColor" />
-    </svg>
+    <button className="save-button" onClick={onAsk}>
+      {T.saveScore}
+    </button>
   );
+}
+
+function tutorialWasDone(): boolean {
+  try {
+    return window.localStorage.getItem(TUTORIAL_DONE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function rememberTutorialDone(): void {
+  try {
+    window.localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+  } catch {
+    // a child who practises twice has lost nothing
+  }
 }

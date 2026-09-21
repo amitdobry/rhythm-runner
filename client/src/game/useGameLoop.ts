@@ -21,7 +21,17 @@ export interface GameLoop {
   countdown: number | null;
 }
 
-export function useGameLoop(canvasRef: RefObject<HTMLCanvasElement>, config: GameConfig): GameLoop {
+export interface GameLoopOptions {
+  /** false while the practice overlay is on top and owns the input itself. */
+  listenToInput?: boolean;
+}
+
+export function useGameLoop(
+  canvasRef: RefObject<HTMLCanvasElement>,
+  config: GameConfig,
+  options: GameLoopOptions = {}
+): GameLoop {
+  const listenToInput = options.listenToInput ?? true;
   // React only hears about the run when something changes that the page draws
   // in HTML: the phase and the countdown. The canvas reads the live state from
   // the ref sixty times a second without re-rendering anything.
@@ -211,11 +221,13 @@ export function useGameLoop(canvasRef: RefObject<HTMLCanvasElement>, config: Gam
       pressFoot(event.clientX - rect.left < rect.width / 2 ? 'left' : 'right');
     };
 
-    window.addEventListener('keydown', onKeyDown);
     window.addEventListener('resize', resize);
-    // On a phone the two pads below the canvas do this job instead.
-    if (configRef.current.platform === 'pc') {
-      canvas.addEventListener('pointerdown', onPointerDown);
+    if (listenToInput) {
+      window.addEventListener('keydown', onKeyDown);
+      // On a phone the two pads below the canvas do this job instead.
+      if (configRef.current.platform === 'pc') {
+        canvas.addEventListener('pointerdown', onPointerDown);
+      }
     }
 
     return () => {
@@ -227,7 +239,7 @@ export function useGameLoop(canvasRef: RefObject<HTMLCanvasElement>, config: Gam
       metronomeRef.current = null;
       unlockedRef.current = false;
     };
-  }, [canvasRef, config, pressFoot]);
+  }, [canvasRef, config, listenToInput, pressFoot]);
 
   return { phase, finished, start, restart: start, pressFoot, countdown };
 }
