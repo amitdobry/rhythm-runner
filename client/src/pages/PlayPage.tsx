@@ -4,7 +4,7 @@ import { usePlayer } from '../player/PlayerContext';
 import { submitScore, type RunSummary } from '../services/api';
 import { configForPlatform, type Foot, type Platform } from '../game/config';
 import { summarize } from '../game/engine';
-import { detectPlatform, readOverride, rememberPlatform } from '../game/platform';
+import { detectPlatform, readOverride } from '../game/platform';
 import { useGameLoop } from '../game/useGameLoop';
 import { createTutorial, tutorialPress, type TutorialState } from '../game/tutorial';
 import { T, fill, formatNumber } from '../text/he';
@@ -31,7 +31,9 @@ export function PlayPage() {
   const { player } = usePlayer();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const [platform, setPlatform] = useState<Platform>(() => readOverride() ?? detectPlatform());
+  // One game. The layout follows the device; ?platform= stays as a testing
+  // aid and appears nowhere in the interface.
+  const [platform] = useState<Platform>(() => readOverride() ?? detectPlatform());
   const config = useMemo(() => configForPlatform(platform), [platform]);
 
   const [tutorial, setTutorial] = useState<TutorialState | null>(() =>
@@ -164,11 +166,6 @@ export function PlayPage() {
     return () => window.clearTimeout(timer);
   }, [phase]);
 
-  const choosePlatform = (next: Platform) => {
-    setPlatform(next);
-    rememberPlatform(next);
-  };
-
   return (
     <main className={isMobile ? 'play play-mobile' : 'play play-pc'}>
       {showHeader && (
@@ -199,20 +196,6 @@ export function PlayPage() {
           <div className="overlay">
             <h2>{T.brand}</h2>
             <p className="overlay-lead">{isMobile ? T.mobileHowTo : T.pcHowTo}</p>
-            <div className="platform-toggle">
-              <button
-                className={platform === 'pc' ? 'chosen' : ''}
-                onClick={() => choosePlatform('pc')}
-              >
-                {T.tabPc}
-              </button>
-              <button
-                className={platform === 'mobile' ? 'chosen' : ''}
-                onClick={() => choosePlatform('mobile')}
-              >
-                {T.tabMobile}
-              </button>
-            </div>
             <button className="primary" onClick={start}>
               {T.start}
             </button>
