@@ -3,7 +3,8 @@
 //   npm run smoke
 //
 // Needs server/.env (or MONGODB_URI in the environment). With a reachable database
-// it walks the whole player flow: enter -> me -> leave -> me is 401.
+// it walks the whole flow: enter -> me -> save a run -> leaderboard -> my best
+// -> leave -> me is 401.
 // Without one it still proves the server starts and fails clearly (503).
 // Never prints the connection string.
 import { spawn } from 'node:child_process';
@@ -83,6 +84,44 @@ try {
         `got ${me1.status}`
       );
 
+      // A finished run: save it, find it on the board, read it back as my best.
+      const run = {
+        score: 1,
+        distance: 1,
+        accuracy: 0,
+        bestCombo: 0,
+        runSeconds: 60,
+        platform: 'pc',
+        course: 'level-1',
+      };
+      const posted = await fetch(`${BASE}/api/scores`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie },
+        body: JSON.stringify(run),
+      });
+      const savedBody = posted.status === 201 ? await posted.json() : {};
+      check(
+        'POST /api/scores saves the run and answers with a rank',
+        posted.status === 201 && typeof savedBody.rank === 'number',
+        `got ${posted.status}`
+      );
+
+      const top = await fetch(`${BASE}/api/scores/top?platform=pc&limit=50`);
+      const topBody = top.ok ? await top.json() : { rows: [] };
+      check(
+        'GET /api/scores/top (no cookie needed) lists the nickname',
+        top.status === 200 && topBody.rows.some((row) => row.nickname === 'Smoke Test'),
+        `got ${top.status}`
+      );
+
+      const mine = await fetch(`${BASE}/api/scores/me`, { headers: { cookie } });
+      const mineBody = mine.ok ? await mine.json() : {};
+      check(
+        'GET /api/scores/me shows my best PC run',
+        mine.status === 200 && mineBody.best?.pc?.nickname === 'Smoke Test' && mineBody.runs >= 1,
+        `got ${mine.status}`
+      );
+
       const leave = await fetch(`${BASE}/api/player/leave`, {
         method: 'POST',
         headers: { cookie },
@@ -94,6 +133,13 @@ try {
         'after leaving, the old cookie is rejected with 401',
         me2.status === 401,
         `got ${me2.status}`
+      );
+
+      const mine2 = await fetch(`${BASE}/api/scores/me`, { headers: { cookie } });
+      check(
+        'after leaving, GET /api/scores/me is 401 too',
+        mine2.status === 401,
+        `got ${mine2.status}`
       );
     }
   }
