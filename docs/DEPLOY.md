@@ -83,8 +83,10 @@ npm run install:all
 npm run dev                   # http://localhost:5173
 ```
 
-The same Atlas database is used locally and in production. Test players are
-fine to leave; nothing here is precious yet.
+The same Atlas database is used locally and in production, so anything you do
+in the app locally shows on the public leaderboard. The smoke script uses the
+throwaway database `rhythm_runner_smoke` on the same cluster instead; drop it
+in Atlas whenever you like.
 
 ## Limits worth knowing (Vercel Hobby)
 

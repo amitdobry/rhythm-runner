@@ -722,7 +722,7 @@ PC and mobile are separate leaderboards; the timing windows differ, so the
 scores are not comparable. Leaderboard query: `$match { platform, course: 'level-1' }`,
 `$sort { score: -1 }`, `$group` by `playerId` taking `$first`,
 `$sort { score: -1 }`, `$limit`. `rank` after saving is
-`1 + count of players on the same platform and course whose best score is higher`.
+`1 + count of other players on the same platform and course whose best score is higher than this player's best` (see M5 step 0).
 
 Move the `readCookie` helper and a `requirePlayer(req, db)` function out of
 `routes/player.ts` into `server/src/player/auth.ts` so both routers use them.
@@ -768,7 +768,56 @@ two browsers. `npm test`, typecheck and `npm run smoke` all pass.
 
 ---
 
+## M4 outcome (reviewed 2026-09-21)
+
+Done in commits `35211c7`, `a016537`, `6584bcf`: 22 server tests (9 old,
+unchanged), 45 client tests, typecheck clean, game folder and Vercel files
+untouched. All routes verified on production. The "two nicknames on the board"
+check is a human step and is done by Amit playing.
+
+Decisions the implementer made where the spec was silent, accepted and now
+part of the spec:
+
+- `auth.ts` also exports `findSignedInPlayer(db, token)`, so `GET /api/player/me`
+  can check the cookie before the database, as its tests require.
+- "Your best" with no run on the selected board renders `Your best: — · N runs`.
+- A failed leaderboard request shows "Scores are not available right now.",
+  never the empty state.
+- `runSeconds` may be a non-integer.
+
+Two things to change, as **M5 step 0**:
+
+- **Rank excludes the player.** `rank` is the player's standing on the board
+  after the save: `1 + count of OTHER players whose best score is higher than
+this player's best`. The implementer's literal reading counted the player's
+  own earlier best, so a run below your best could report a rank you do not
+  hold.
+- **The smoke script must not touch production data.** It runs against the
+  same Atlas cluster as production, so its rows would appear on the public
+  board.
+
 ## M5. Ship and hand over
+
+### Step 0 - fixes from the M4 review
+
+1. `rankOf` in `server/src/scores/scores.ts`: take the player's id, exclude it
+   in the first `$match`, and compare against the player's best (`$max` of
+   their scores on that platform and course), not the run just saved.
+   `saveRun` passes the id and reads the best after inserting.
+2. `scripts/smoke.mjs`: spawn the server with
+   `MONGODB_DB_NAME: process.env.SMOKE_DB_NAME ?? 'rhythm_runner_smoke'`. The
+   production database is never written by the smoke script. Print one line
+   at the start saying which database is used. `rhythm_runner_smoke` is a
+   throwaway; anyone may drop it in Atlas at any time.
+3. `scripts/smoke.mjs`: when `MONGODB_URI` is absent, spawn the server with
+   `MONGODB_URI: 'mongodb://127.0.0.1:1/'` (unreachable) so the "server up,
+   database error, entering answers 503" branch is actually exercised instead
+   of the server refusing to boot. Say so in the script's header comment.
+4. Smoke flow, extended: post two runs for "Smoke Test", the second with a
+   lower score, and assert both answers have `rank === 1` (the only player in
+   the smoke database). This is the test for fix 1.
+
+Then the original M5 list:
 
 0. `useGameLoop`: publish to React only when `phase` or `countdown` changes
    (expose `phase` and a `finished: GameState | null`); the canvas reads the

@@ -215,6 +215,11 @@ the top 5, so a visitor sees names before typing one.
 
 Done when: two different nicknames appear on the production leaderboard.
 
+**Done 2026-09-21** (commits `35211c7` to `6584bcf`): 22 server tests, 45
+client tests, all routes verified on production. Two follow-ups (rank counting
+the player, smoke script writing to production) are M5 step 0 in
+`PHASE-1-BUILD.md`.
+
 ### M5. Ship and hand over
 
 1. Mobile polish: safe areas, no page scroll, one-handed reach, upright hint.

@@ -47,7 +47,7 @@ expired or unknown (the cookie is cleared).
 
 `200 { "ok": true }`. Deletes the session and clears the cookie. Never fails.
 
-## Scores (M4, planned)
+## Scores
 
 Shared shapes:
 
@@ -83,8 +83,9 @@ distance above `20 x runSeconds`, score above `3 x distance`, `bestCombo`
 above the most steps that fit in the run at the fastest pace, unknown
 `platform`, missing `course`.
 
-- `201 { "saved": ScoreRow, "rank": 3 }` where `rank` is the position on the
-  leaderboard of the same platform (1 = best).
+- `201 { "saved": ScoreRow, "rank": 3 }` where `rank` is the player's position
+  on the leaderboard of the same platform after this save (1 = best; other
+  players with a higher best score, plus one).
 - `400` invalid body. `503` no database.
 
 ### `GET /api/scores/top?platform=pc&limit=10` - public (no session needed)
