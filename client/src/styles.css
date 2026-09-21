@@ -358,3 +358,120 @@ body.playing {
 .play-pads {
   direction: ltr;
 }
+
+/* ---------------------------------------------------------------- landing */
+
+.landing {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  text-align: center;
+}
+
+.brand {
+  margin: 8px 0 0;
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+/* The one thing on the page a child has to find. */
+.play-button {
+  display: block;
+  padding: 22px 16px;
+  border-radius: 16px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 1.6rem;
+  font-weight: 900;
+  text-decoration: none;
+  border: none;
+}
+.play-button:active {
+  transform: translateY(1px);
+}
+
+.top-five {
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.quiet-link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  text-decoration: underline;
+  padding: 4px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.who {
+  align-items: center;
+}
+.hello {
+  margin: 0;
+  font-weight: 700;
+}
+
+.nickname-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: start;
+}
+
+.footer {
+  margin-top: 8px;
+}
+
+/* ---------------------------------------------------------------- modal */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 18, 26, 0.6);
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 460px;
+  max-height: 86dvh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 14px;
+  background: #fff;
+  text-align: start;
+}
+
+.behind-steps {
+  margin: 0;
+  padding-inline-start: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.behind-rule {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-weight: 600;
+}
