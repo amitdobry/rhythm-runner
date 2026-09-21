@@ -123,4 +123,4 @@ dev only).
 - stronger identity (PIN or room code), roles, admin;
 - client-side tests (vitest + a DOM environment) when there is game logic to test;
 - ESLint, if the students' code starts to need it;
-- a GitHub remote, CI and deployment.
+- a GitHub remote, CI and deployment (remote added 2026-09-21; hosting is planned in `docs/PHASE-1.md`).
