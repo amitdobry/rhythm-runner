@@ -179,6 +179,7 @@ export function useGameLoop(
     let frame = 0;
     let lastFrameMs: number | null = null;
     let accumulator = 0;
+    let spokeForSkipAtMs = -1; // a missed beat is answered once, not every frame
 
     const loop = (now: number) => {
       frame = window.requestAnimationFrame(loop);
@@ -209,6 +210,13 @@ export function useGameLoop(
         drainInput();
         stateRef.current = tick(stateRef.current, STEP_MS);
         guideClick();
+
+        // A beat that went by with no foot on it deserves an answer too.
+        const missed = stateRef.current.lastEvent;
+        if (missed && missed.kind === 'skipped' && missed.atMs !== spokeForSkipAtMs) {
+          spokeForSkipAtMs = missed.atMs;
+          metronome.click('skipped');
+        }
       }
 
       // The only thing React needs from a frame is a change of phase.

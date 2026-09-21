@@ -1,15 +1,18 @@
 // Everything the game says out loud.
 //
-// Four short recordings answer the player's steps, one plays before the run,
-// and a quiet loop keeps the run moving. The pace tick is still made by the
-// browser itself, because it happens up to twice a second and a recording
-// would wear thin.
+// Short recordings answer the player's steps, one plays before the run, and a
+// quiet loop keeps the run moving. The pace tick is still made by the browser
+// itself, because it happens twice a second and a recording would wear thin.
 //
-// Browsers refuse to make a sound until the player has touched the page, so
-// unlock() is called on the first key press or tap. Nothing here ever throws:
-// a game with no sound is still a game.
+// Two rules decide the shape of this file:
+//
+//  - A browser will not make a sound until the player has touched the page, so
+//    unlock() is called on the first press. Only PLAYING needs that gesture;
+//    downloading does not, so the recordings are fetched the moment the game
+//    loads and are ready before anyone presses anything.
+//  - Nothing here ever throws. A game with no sound is still a game.
 
-export type ClickKind = 'due' | 'perfect' | 'good' | 'miss';
+export type ClickKind = 'due' | 'perfect' | 'good' | 'miss' | 'skipped';
 
 export interface Metronome {
   unlock(): void;
@@ -19,7 +22,7 @@ export interface Metronome {
   dispose(): void;
 }
 
-/** Recordings live in client/public/sounds and are fetched on first use. */
+/** Recordings live in client/public/sounds. */
 const SOUND_URL: Record<string, string> = {
   perfect: '/sounds/perfect.mp3',
   good: '/sounds/good.mp3',
@@ -28,10 +31,11 @@ const SOUND_URL: Record<string, string> = {
 };
 const MUSIC_URL = '/sounds/music.mp3';
 
-// Quiet enough for a classroom, and quiet enough that the sound effects and
-// the pace tick are still the things you notice.
+// Quiet enough for a classroom, and quiet enough that the answers to the
+// player's steps are still the things you notice.
 const MUSIC_VOLUME = 0.12;
 const EFFECT_VOLUME = 0.55;
+const SKIPPED_VOLUME = 0.28; // a missed beat is a quieter version of a wrong step
 const TICK_VOLUME = 0.06;
 
 const TICK_HZ = 880;
@@ -59,37 +63,74 @@ export function createMetronome(): Metronome {
 
   let context: AudioContext | null = null;
   let musicElement: HTMLAudioElement | null = null;
-  const buffers = new Map<string, AudioBuffer>();
-  const loading = new Set<string>();
+  let alive = true;
 
-  /** Fetch and decode one recording, once. Failure just means silence. */
-  const load = (name: string) => {
-    const url = SOUND_URL[name];
-    if (!url || !context || buffers.has(name) || loading.has(name)) return;
-    loading.add(name);
-    void fetch(url)
-      .then((response) => response.arrayBuffer())
-      .then((raw) => context?.decodeAudioData(raw))
-      .then((decoded) => {
-        if (decoded) buffers.set(name, decoded);
-      })
-      .catch(() => {})
-      .finally(() => loading.delete(name));
+  // Start downloading straight away: bytes need no permission, only sound does.
+  const bytes = new Map<string, Promise<ArrayBuffer | null>>();
+  for (const [name, url] of Object.entries(SOUND_URL)) {
+    bytes.set(
+      name,
+      fetch(url)
+        .then((response) => (response.ok ? response.arrayBuffer() : null))
+        .catch(() => null)
+    );
+  }
+
+  const decoded = new Map<string, AudioBuffer>();
+  const decoding = new Map<string, Promise<AudioBuffer | null>>();
+
+  /** The decoded recording, decoding it first if this is the first time. */
+  const buffer = (name: string): Promise<AudioBuffer | null> => {
+    const ready = decoded.get(name);
+    if (ready) return Promise.resolve(ready);
+
+    const started = decoding.get(name);
+    if (started) return started;
+
+    const job = (async () => {
+      const raw = await bytes.get(name);
+      if (!raw || !context) return null;
+      try {
+        // decodeAudioData empties the buffer it is given, so it gets a copy
+        // and the original stays available for a second attempt.
+        const audio = await context.decodeAudioData(raw.slice(0));
+        decoded.set(name, audio);
+        return audio;
+      } catch {
+        return null;
+      } finally {
+        decoding.delete(name);
+      }
+    })();
+
+    decoding.set(name, job);
+    return job;
   };
 
-  const playBuffer = (name: string) => {
-    const buffer = buffers.get(name);
-    if (!context || !buffer || context.state !== 'running') {
-      load(name); // not ready this time; be ready for the next one
-      return;
-    }
-    const source = context.createBufferSource();
-    const gain = context.createGain();
-    gain.gain.value = EFFECT_VOLUME;
-    source.buffer = buffer;
-    source.connect(gain);
-    gain.connect(context.destination);
-    source.start();
+  /**
+   * Play a recording. Waits for the sound system to wake up and for the file
+   * to decode, rather than giving up - otherwise the very first sound of the
+   * game, the one before the countdown, is always the one nobody hears.
+   */
+  const play = (name: string, volume: number): void => {
+    void (async () => {
+      try {
+        if (!context) return;
+        if (context.state !== 'running') await context.resume();
+        const audio = await buffer(name);
+        if (!audio || !context || !alive) return;
+
+        const source = context.createBufferSource();
+        const gain = context.createGain();
+        gain.gain.value = volume;
+        source.buffer = audio;
+        source.connect(gain);
+        gain.connect(context.destination);
+        source.start();
+      } catch {
+        // a missed sound must never stop the game
+      }
+    })();
   };
 
   /** The pace tick, made by the browser: rise fast, fall away. */
@@ -114,27 +155,21 @@ export function createMetronome(): Metronome {
       try {
         if (!context) context = new AudioContextClass();
         if (context.state === 'suspended') void context.resume();
-        for (const name of Object.keys(SOUND_URL)) load(name);
+        // Decode now, while the player is still reading the overlay.
+        for (const name of Object.keys(SOUND_URL)) void buffer(name);
       } catch {
         context = null; // no sound, but the game keeps running
       }
     },
 
     click(kind) {
-      try {
-        if (kind === 'due') playTick();
-        else playBuffer(kind);
-      } catch {
-        // a missed sound must never stop the game
-      }
+      if (kind === 'due') playTick();
+      else if (kind === 'skipped') play('miss', SKIPPED_VOLUME);
+      else play(kind, EFFECT_VOLUME);
     },
 
     cue(name) {
-      try {
-        playBuffer(name);
-      } catch {
-        // as above
-      }
+      play(name, EFFECT_VOLUME);
     },
 
     music(on) {
@@ -156,6 +191,7 @@ export function createMetronome(): Metronome {
     },
 
     dispose() {
+      alive = false;
       try {
         musicElement?.pause();
         musicElement = null;
@@ -164,7 +200,7 @@ export function createMetronome(): Metronome {
         // already closed
       }
       context = null;
-      buffers.clear();
+      decoded.clear();
     },
   };
 }
