@@ -12,7 +12,7 @@
 //    loads and are ready before anyone presses anything.
 //  - Nothing here ever throws. A game with no sound is still a game.
 
-export type ClickKind = 'due' | 'perfect' | 'good' | 'miss' | 'skipped';
+export type ClickKind = 'due' | 'perfect' | 'good' | 'miss' | 'skipped' | 'stumble';
 
 export interface Metronome {
   unlock(): void;
@@ -28,6 +28,7 @@ const SOUND_URL: Record<string, string> = {
   good: '/sounds/good.mp3',
   miss: '/sounds/bad.mp3',
   start: '/sounds/start.mp3',
+  stumble: '/sounds/stumble.mp3',
 };
 const MUSIC_URL = '/sounds/music.mp3';
 
@@ -165,6 +166,7 @@ export function createMetronome(): Metronome {
     click(kind) {
       if (kind === 'due') playTick();
       else if (kind === 'skipped') play('miss', SKIPPED_VOLUME);
+      else if (kind === 'stumble') play('stumble', EFFECT_VOLUME);
       else play(kind, EFFECT_VOLUME);
     },
 

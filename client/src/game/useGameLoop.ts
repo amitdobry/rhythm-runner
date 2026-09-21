@@ -146,6 +146,9 @@ export function useGameLoop(
       else if (kind.kind === 'good') metronome.click('good');
       else if (kind.kind === 'tooFast' || kind.kind === 'tooSlow' || kind.kind === 'wrongFoot') {
         metronome.click('miss');
+      } else if (kind.kind === 'stumble') {
+        // The step that emptied the energy bar: the fall speaks for itself.
+        metronome.click('stumble');
       }
     };
 
