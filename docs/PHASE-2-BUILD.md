@@ -143,7 +143,7 @@ The string table. Use exactly these; add missing ones in the same register
 | nicknameLabel       | איך לקרוא לכם? כינוי, לא שם מלא                                                                                                  |
 | nicknamePlaceholder | למשל: קפטן קוד                                                                                                                   |
 | enter               | כניסה                                                                                                                            |
-| played Before       | כבר שיחקתי, יש לי כינוי                                                                                                          |
+| playedBefore        | כבר שיחקתי, יש לי כינוי                                                                                                          |
 | hello               | שלום, {name}                                                                                                                     |
 | logOut              | יציאה                                                                                                                            |
 | rank                | מקום {n} בטבלה                                                                                                                   |
