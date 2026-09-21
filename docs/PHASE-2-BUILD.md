@@ -49,12 +49,14 @@ In this spec the remembered value is called `ref` (a string, `''` when none).
 6. Anonymous funnel analytics carrying the leaflet marker, plus a key-protected summary.
 7. The dartboard pace target under the due foot (pulled forward from M8; see
    "Pace target" under M8 for the geometry). Rendering only.
+8. Feel and difficulty: easier windows, softer penalties, and every step
+   answered on screen (see "Item 8" below). Config values and rendering only.
 
-Not in M6: any change to game balance, rendering of the scene other than the
-pace target, the engine's
+Not in M6: rendering of the scene other than items 7 and 8, the engine's
 rules, the scores API, or the leaderboard logic. `client/src/game/engine.ts`,
-`course.ts`, `pace.ts`, `scoring.ts` do not change. `config.ts` changes
-**only** in the `label` strings of `TERRAIN` and `WEATHER`.
+`course.ts`, `pace.ts`, `scoring.ts` do not change. `config.ts` changes only
+in the `label` strings of `TERRAIN` and `WEATHER` and in the numbers listed
+under item 8.
 
 ### Files
 
@@ -321,6 +323,60 @@ Any game URL with `?ref=CODE` or `?b=N` sets `ref` as above; it is sent with
 every event and put into `workshopLink`. The landing page already links to the
 game with the visitor's marker and reads it back on `#contact`; nothing else
 is needed for credit to flow.
+
+### Item 8. Feel and difficulty (Amit, 2026-09-21: "it is too hard, and it
+
+is not clear when I clicked right")
+
+Two problems, two fixes. Neither touches `engine.ts`.
+
+**A. Easier.** New values in `config.ts`. Everything not listed stays.
+
+| Value                   | Was | Now | Why                                         |
+| ----------------------- | --- | --- | ------------------------------------------- |
+| PC perfectWindowMs      | 60  | 90  | a first-time adult lands green often enough |
+| PC goodWindowMs         | 120 | 170 | yellow is a real zone, not a sliver         |
+| Mobile perfectWindowMs  | 80  | 110 | thumbs                                      |
+| Mobile goodWindowMs     | 160 | 210 |                                             |
+| speed.start             | 4   | 6   | the world moves from the first second       |
+| speed.perfectBoost      | 2   | 2.5 | green feels like a push                     |
+| speed.goodBoost         | 1   | 1   | yellow is small progress                    |
+| speed.missPenalty       | 3   | 1.5 | red is a small kill of pace, not a wall     |
+| speed.decayPerSecond    | 0.8 | 0.6 | fewer punishing moments between steps       |
+| speed.stumbleSpeed      | 1   | 2   |                                             |
+| energy.missLoss         | 10  | 6   | a stumble takes a run of misses, not four   |
+| energy.stumbleRecoverTo | 30  | 50  | getting up is a fresh chance                |
+
+Wrong foot keeps costing the same as a miss (now small). `requireAlternatingFeet`
+stays true. Terrain and weather tables unchanged. Engine tests that assert the
+old literals must read the value from `DEFAULT_CONFIG` instead of a number;
+the rules they test do not change. `docs/GAME-DESIGN.md` gets the new numbers.
+
+**B. Every step answered.** In `render.ts`, for 220 ms after `lastEvent.atMs`
+(stars 350 ms), driven by `lastEvent.kind`, all eased out, all sizes and
+colours from constants at the top of the file:
+
+| Event                         | Runner                             | Popup over the runner's head          | From the target                                           | Extra                               |
+| ----------------------------- | ---------------------------------- | ------------------------------------- | --------------------------------------------------------- | ----------------------------------- |
+| perfect                       | lunges forward 14 px, springs back | "+2.5" in FLASH_PERFECT, rising 30 px | eight stars burst outward and fade (FLASH_GOOD and white) | six speed streaks behind the runner |
+| good                          | lunges 7 px                        | "+1" in FLASH_GOOD                    | three stars                                               |                                     |
+| tooFast / tooSlow / wrongFoot | leans back 8 px                    | the Hebrew reason in FLASH_BAD        | target flashes red                                        | whole scene shakes 2 px for 120 ms  |
+| skipped                       | none                               | "פספוס" in HUD_MUTED                  | target flashes red, ring restarts                         |                                     |
+| stumble                       | existing tilt                      | "אופס!" in FLASH_BAD                  |                                                           | red vignette at the canvas edges    |
+
+Stars: small five-point shapes, 4-7 px, launched from the target's rim at
+random angles with a little upward bias, decelerating, fading to zero; drawn
+from `lastEvent.atMs` and `state.distance` only (no random per frame: seed
+the angles from `lastEvent.atMs` so two frames of the same state agree).
+
+The popup numbers come from `config.speed` (`+${perfectBoost}`), never typed
+in. The speed bar in the HUD flashes the result colour for the same 220 ms.
+The pace meter in the HUD is removed: the dartboard (item 7) now carries that
+information and the HUD gets simpler.
+
+Acceptance: a first-time adult on PC finishes a run with energy above 0, sees
+green often, and can say after one run which of their steps were good and
+which were not, without being told.
 
 ### Done when
 
