@@ -10,7 +10,11 @@ export const COLLECTIONS = {
   players: 'players',
   sessions: 'sessions',
   scores: 'scores',
+  events: 'events',
 } as const;
+
+/** Events are a counting tool, not an archive: MongoDB drops each one after this. */
+const EVENT_TTL_SECONDS = 180 * 24 * 60 * 60;
 
 export type ConnectionState = 'connected' | 'disconnected' | 'error';
 
@@ -49,6 +53,12 @@ async function ensureIndexes(database: Db): Promise<void> {
   await database
     .collection(COLLECTIONS.scores)
     .createIndex({ playerId: 1, platform: 1, score: -1 });
+  // The funnel keeps nothing for long: see EVENT_TTL_SECONDS above.
+  await database
+    .collection(COLLECTIONS.events)
+    .createIndex({ at: 1 }, { expireAfterSeconds: EVENT_TTL_SECONDS });
+  await database.collection(COLLECTIONS.events).createIndex({ name: 1, at: -1 });
+  await database.collection(COLLECTIONS.events).createIndex({ batch: 1, at: -1 });
 }
 
 /** null means "not connected". Callers must handle that case clearly. */
