@@ -9,6 +9,14 @@ What exists is a server, a database connection, a front door (pick a nickname),
 and one deliberately empty protected screen. See `docs/PHASE-0.md` for what was
 decided and why.
 
+## Coming from the workshop leaflet?
+
+This repository is the live record of a game that children build, step by step,
+in the AI coding workshop. Today it holds the foundation only, and it runs on
+your own computer (see "Running it" below). A hosted version you can play in the
+browser will be linked here once the students have built the first playable
+level.
+
 ---
 
 ## Running it
