@@ -223,11 +223,14 @@ button.primary,
   border-radius: 0;
 }
 
+/* The pads sit at the very bottom, clear of the notch and the home bar, so
+   both thumbs reach them without moving the hand. */
 .play-pads {
   flex: 1;
   display: flex;
   gap: 8px;
-  padding: 8px;
+  padding: 8px calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom))
+    calc(8px + env(safe-area-inset-left));
   min-height: 25dvh;
 }
 
@@ -312,4 +315,31 @@ button.primary,
 .score-note.muted {
   font-weight: 400;
   color: #aab4c4;
+}
+
+/* While /play is open the page behind the game must not move: no scrolling,
+   and no pull-to-refresh when a thumb lands next to a pad instead of on it. */
+body.playing {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.play-mobile .play-header {
+  padding-top: calc(8px + env(safe-area-inset-top));
+}
+
+/* Only shown when the phone is on its side. */
+.rotate-hint {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .play-mobile .rotate-hint {
+    display: block;
+    margin: 0;
+    padding: 6px 12px;
+    text-align: center;
+    font-weight: 600;
+    color: #1d2230;
+    background: #ffd23f;
+  }
 }

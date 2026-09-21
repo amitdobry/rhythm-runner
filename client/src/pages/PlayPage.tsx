@@ -37,6 +37,13 @@ export function PlayPage() {
       .catch(() => setSaved({ status: 'failed' }));
   }, [phase, finished]);
 
+  // While the game is open the page itself must not move: no scrolling and
+  // no pull-to-refresh when a thumb misses a pad.
+  useEffect(() => {
+    document.body.classList.add('playing');
+    return () => document.body.classList.remove('playing');
+  }, []);
+
   const isMobile = platform === 'mobile';
   const running = phase === 'running';
   const showHeader = !(isMobile && running);
@@ -108,6 +115,8 @@ export function PlayPage() {
           </div>
         )}
       </div>
+
+      {isMobile && <p className="rotate-hint">Hold your phone upright to play.</p>}
 
       {isMobile && (
         <div className="play-pads">
