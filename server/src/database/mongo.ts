@@ -9,6 +9,7 @@ import { MongoClient, Db } from 'mongodb';
 export const COLLECTIONS = {
   players: 'players',
   sessions: 'sessions',
+  scores: 'scores',
 } as const;
 
 export type ConnectionState = 'connected' | 'disconnected' | 'error';
@@ -42,6 +43,12 @@ async function ensureIndexes(database: Db): Promise<void> {
   await database
     .collection(COLLECTIONS.sessions)
     .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  // One index per leaderboard question: "who is best on this board?" and
+  // "what is this player s best?"
+  await database.collection(COLLECTIONS.scores).createIndex({ platform: 1, course: 1, score: -1 });
+  await database
+    .collection(COLLECTIONS.scores)
+    .createIndex({ playerId: 1, platform: 1, score: -1 });
 }
 
 /** null means "not connected". Callers must handle that case clearly. */

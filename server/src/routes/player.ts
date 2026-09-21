@@ -1,13 +1,8 @@
-import { Router, Request } from 'express';
+import { Router } from 'express';
 import { getDb } from '../database/mongo.js';
-import { findOrCreatePlayer, findPlayerById, normaliseNickname } from '../player/players.js';
-import {
-  SESSION_COOKIE,
-  SESSION_DAYS,
-  createSession,
-  deleteSession,
-  findSessionPlayerId,
-} from '../player/sessions.js';
+import { findOrCreatePlayer, normaliseNickname } from '../player/players.js';
+import { SESSION_COOKIE, SESSION_DAYS, createSession, deleteSession } from '../player/sessions.js';
+import { findSignedInPlayer, readCookie } from '../player/auth.js';
 import { HttpError } from '../errors.js';
 
 /**
@@ -32,16 +27,6 @@ function requireDb() {
   return db;
 }
 
-function readCookie(req: Request, name: string): string | null {
-  const header = req.headers.cookie;
-  if (!header) return null;
-  for (const part of header.split(';')) {
-    const [key, ...rest] = part.trim().split('=');
-    if (key === name) return decodeURIComponent(rest.join('='));
-  }
-  return null;
-}
-
 playerRouter.post('/enter', async (req, res) => {
   const nickname = normaliseNickname(req.body?.nickname);
   if (!nickname) {
@@ -61,8 +46,7 @@ playerRouter.get('/me', async (req, res) => {
   const token = readCookie(req, SESSION_COOKIE);
   if (!token) throw new HttpError(401, 'Not signed in.');
   const db = requireDb();
-  const playerId = await findSessionPlayerId(db, token);
-  const player = playerId ? await findPlayerById(db, playerId) : null;
+  const player = await findSignedInPlayer(db, token);
   if (!player) {
     res.clearCookie(SESSION_COOKIE);
     throw new HttpError(401, 'Not signed in.');

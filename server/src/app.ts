@@ -1,6 +1,7 @@
 import express from 'express';
 import { healthRouter } from './routes/health.js';
 import { playerRouter } from './routes/player.js';
+import { scoresRouter } from './routes/scores.js';
 import { errorHandler, notFound } from './errors.js';
 
 /**
@@ -13,6 +14,7 @@ export function createApp() {
 
   app.use('/api/health', healthRouter);
   app.use('/api/player', playerRouter);
+  app.use('/api/scores', scoresRouter);
 
   app.use('/api', notFound);
   app.use(errorHandler);
