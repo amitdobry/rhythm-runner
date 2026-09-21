@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type { Foot, GameConfig } from './config';
 import { createGame, startRun, step, tick, type GameState, type Phase } from './engine';
 import { createMetronome, readMuted, type Metronome } from './audio';
+import { SHIRT_COLOURS } from './colours';
 import { render } from './render';
 
 const STEP_MS = 10; // the simulation always moves in 10 ms steps
@@ -45,6 +46,8 @@ export function footForKey(event: KeyboardEvent): Foot | null {
 export interface GameLoopOptions {
   /** false while the practice overlay is on top and owns the input itself. */
   listenToInput?: boolean;
+  /** The player's shirt, so the runner on the road is recognisably them. */
+  shirtColour?: string;
 }
 
 export function useGameLoop(
@@ -53,6 +56,9 @@ export function useGameLoop(
   options: GameLoopOptions = {}
 ): GameLoop {
   const listenToInput = options.listenToInput ?? true;
+  // Read through a ref so signing in changes the shirt without restarting the loop.
+  const shirtRef = useRef(options.shirtColour ?? SHIRT_COLOURS[0]);
+  shirtRef.current = options.shirtColour ?? SHIRT_COLOURS[0];
   // React only hears about the run when something changes that the page draws
   // in HTML: the phase and the countdown. The canvas reads the live state from
   // the ref sixty times a second without re-rendering anything.
@@ -186,7 +192,7 @@ export function useGameLoop(
     const draw = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      render(ctx, stateRef.current, sizeRef.current);
+      render(ctx, stateRef.current, { ...sizeRef.current, shirtColour: shirtRef.current });
     };
 
     let frame = 0;

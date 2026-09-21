@@ -7,6 +7,7 @@ import { summarize } from '../game/engine';
 import { detectPlatform, readOverride } from '../game/platform';
 import { useGameLoop } from '../game/useGameLoop';
 import { createTutorial, tutorialPress, type TutorialState } from '../game/tutorial';
+import { colourForNickname } from '../game/colours';
 import { T, fill, formatNumber } from '../text/he';
 import { currentRef, track } from '../analytics/analytics';
 import { Footprint } from '../components/Footprint';
@@ -46,7 +47,7 @@ export function PlayPage() {
   const { phase, finished, muted, setMuted, start, restart, pressFoot, countdown } = useGameLoop(
     canvasRef,
     config,
-    { listenToInput: !practising }
+    { listenToInput: !practising, shirtColour: colourForNickname(player?.nickname) }
   );
 
   const [saved, setSaved] = useState<Saved>({ status: 'idle' });

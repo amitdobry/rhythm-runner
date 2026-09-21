@@ -43,7 +43,8 @@ export function drawRunner(
   x: number,
   groundY: number,
   scale: number,
-  answer: Answer | null
+  answer: Answer | null,
+  shirtColour: string
 ): void {
   const stumbling = state.stumbleUntilMs !== null;
   const bodyHeight = 68 * scale;
@@ -78,10 +79,11 @@ export function drawRunner(
   ctx.stroke();
 
   // body and head
-  ctx.fillStyle = stumbling ? RUNNER_STUMBLE : RUNNER_BODY;
+  ctx.fillStyle = stumbling ? RUNNER_STUMBLE : shirtColour;
   roundedRect(ctx, -bodyWidth / 2, -bodyHeight, bodyWidth, bodyHeight * 0.62, 9 * scale);
   ctx.fill();
 
+  ctx.fillStyle = stumbling ? RUNNER_STUMBLE : RUNNER_BODY;
   ctx.beginPath();
   ctx.arc(0, -bodyHeight - headRadius * 0.4, headRadius, 0, Math.PI * 2);
   ctx.fill();

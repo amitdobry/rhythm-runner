@@ -44,6 +44,8 @@ import { drawFootprints } from './render/target';
 export interface RenderOptions {
   width: number;
   height: number;
+  /** The player's own shirt, from their nickname. */
+  shirtColour: string;
 }
 
 export function render(
@@ -51,7 +53,7 @@ export function render(
   state: GameState,
   options: RenderOptions
 ): void {
-  const { width, height } = options;
+  const { width, height, shirtColour } = options;
   const scale = Math.max(0.62, Math.min(1, width / 960));
   const here = segmentAt(state.distance, state.config.course);
   const roadOffsetPx = state.distance / METERS_PER_PIXEL;
@@ -80,7 +82,7 @@ export function render(
 
   const runnerX = width * RUNNER_X_FRACTION;
   const groundY = roadYAt(bands, runnerX, height * ROAD_Y_FRACTION);
-  drawRunner(ctx, state, runnerX, groundY, scale, answer);
+  drawRunner(ctx, state, runnerX, groundY, scale, answer, shirtColour);
   drawFootprints(ctx, state, runnerX, groundY, scale, answer);
   drawPopup(ctx, state, runnerX, groundY, scale, answer);
   ctx.restore();
