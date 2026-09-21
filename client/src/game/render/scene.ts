@@ -1,4 +1,4 @@
-import { upcomingSegments, type SegmentPosition } from '../course';
+import { segmentAt, upcomingSegments, type SegmentPosition } from '../course';
 import type { GameState } from '../engine';
 import type { Segment, Weather } from '../config';
 import {
@@ -20,7 +20,20 @@ import {
   SKY_TOP,
   WATER_RIPPLE,
   WIND_STREAK,
+  BUSH,
+  CLOUD,
+  CLOUD_RAIN,
+  FISH,
+  HILL_FAR,
+  HILL_NEAR,
+  LEAF,
+  SPLASH,
+  SUN,
+  SUN_PALE,
+  TREE_LEAVES,
+  TREE_TRUNK,
 } from './palette';
+import { seeded } from './shapes';
 
 /**
  * The world the runner moves through: sky, city, pavement, road and weather.
@@ -65,11 +78,11 @@ export function drawSky(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  weather: Weather
+  look: WeatherLook
 ): void {
   const sky = ctx.createLinearGradient(0, 0, 0, height * HORIZON_FRACTION);
-  sky.addColorStop(0, SKY_TOP[weather]);
-  sky.addColorStop(1, SKY_BOTTOM[weather]);
+  sky.addColorStop(0, look.skyTop);
+  sky.addColorStop(1, look.skyBottom);
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, width, height);
 }
@@ -298,15 +311,15 @@ export function drawWeather(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  weather: Weather,
+  look: WeatherLook,
   roadOffsetPx: number
 ): void {
-  if (weather === 'clear') return;
+  if (look.rain < 0.02 && look.wind < 0.02) return;
 
   ctx.save();
-  if (weather === 'rain') {
+  if (look.rain >= look.wind) {
     ctx.strokeStyle = RAIN_STREAK;
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.5 * look.rain;
     ctx.lineWidth = 2;
     const spacing = 46;
     const offset = (roadOffsetPx * 1.4) % spacing;
@@ -321,7 +334,7 @@ export function drawWeather(
     }
   } else {
     ctx.strokeStyle = WIND_STREAK;
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.35 * look.wind;
     ctx.lineWidth = 2;
     const spacing = 120;
     const offset = (roadOffsetPx * 2) % spacing;
@@ -334,6 +347,301 @@ export function drawWeather(
         ctx.stroke();
       }
     }
+  }
+  ctx.restore();
+}
+
+/* ---------------------------------------------------------------- weather */
+
+/**
+ * How the sky looks right now.
+ *
+ * Weather does not snap: when the road crosses into rain the sky darkens over
+ * a second, so the change is something you watch arrive rather than a jump
+ * between two frames.
+ */
+export interface WeatherLook {
+  skyTop: string;
+  skyBottom: string;
+  rain: number; // 0 to 1
+  wind: number; // 0 to 1
+  cloudDark: number; // 0 to 1
+}
+
+const BLEND_MS = 1000;
+
+export function weatherLook(state: GameState): WeatherLook {
+  const course = state.config.course;
+  const current = course[state.segmentIndex] ?? course[0];
+  const previous = course[(state.segmentIndex - 1 + course.length) % course.length];
+
+  const changedAt = state.segmentChangedAtMs;
+  const through =
+    changedAt === null ? 1 : Math.max(0, Math.min(1, (state.timeMs - changedAt) / BLEND_MS));
+
+  const is = (weather: Weather, kind: 'rain' | 'wind') => (weather === kind ? 1 : 0);
+
+  return {
+    skyTop: blendColour(SKY_TOP[previous.weather], SKY_TOP[current.weather], through),
+    skyBottom: blendColour(SKY_BOTTOM[previous.weather], SKY_BOTTOM[current.weather], through),
+    rain: lerp(is(previous.weather, 'rain'), is(current.weather, 'rain'), through),
+    wind: lerp(is(previous.weather, 'wind'), is(current.weather, 'wind'), through),
+    cloudDark: lerp(is(previous.weather, 'rain'), is(current.weather, 'rain'), through),
+  };
+}
+
+function lerp(from: number, to: number, through: number): number {
+  return from + (to - from) * through;
+}
+
+/** Mixes two #rrggbb colours. Anything else is passed straight through. */
+function blendColour(from: string, to: string, through: number): string {
+  if (from.length !== 7 || to.length !== 7) return through < 0.5 ? from : to;
+  const part = (at: number) => {
+    const a = parseInt(from.slice(at, at + 2), 16);
+    const b = parseInt(to.slice(at, at + 2), 16);
+    return Math.round(lerp(a, b, through))
+      .toString(16)
+      .padStart(2, '0');
+  };
+  return `#${part(1)}${part(3)}${part(5)}`;
+}
+
+/* ---------------------------------------------------------------- sky life */
+
+/** The sun, or the pale disc you can just make out behind the cloud. */
+export function drawSun(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  look: WeatherLook
+): void {
+  const hidden = Math.max(look.rain, look.wind);
+  ctx.save();
+  ctx.globalAlpha = 1 - hidden * 0.5;
+  ctx.fillStyle = hidden > 0.5 ? SUN_PALE : SUN;
+  ctx.beginPath();
+  ctx.arc(width * 0.22, height * 0.14, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+const CLOUD_PERIOD = 260;
+
+export function drawClouds(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  roadOffsetPx: number,
+  look: WeatherLook
+): void {
+  // Rain brings more cloud and darkens it; wind stretches them and hurries them on.
+  const count = Math.ceil(width / CLOUD_PERIOD) + 2 + Math.round(look.cloudDark * 2);
+  const speed = 0.1 + look.wind * 0.12;
+  const stretch = 1 + look.wind * 0.8;
+  const offset = (roadOffsetPx * speed) % CLOUD_PERIOD;
+
+  ctx.save();
+  ctx.fillStyle = blendColour(CLOUD, CLOUD_RAIN, look.cloudDark);
+  ctx.globalAlpha = 0.9;
+  for (let i = 0; i < count + 1; i += 1) {
+    const x = i * CLOUD_PERIOD - offset;
+    const y = height * (0.07 + 0.06 * seeded(7, i));
+    const r = 16 + 8 * seeded(9, i);
+    ctx.beginPath();
+    ctx.ellipse(x, y, r * stretch, r * 0.7, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + r * stretch * 0.7, y + 3, r * 0.8 * stretch, r * 0.55, 0, 0, Math.PI * 2);
+    ctx.ellipse(x - r * stretch * 0.7, y + 4, r * 0.7 * stretch, r * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** Two rows of soft bumps, far behind the city. */
+export function drawHills(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  roadOffsetPx: number
+): void {
+  const horizon = height * HORIZON_FRACTION;
+  const rows = [
+    { colour: HILL_FAR, speed: 0.15, period: 240, rise: 0.12 },
+    { colour: HILL_NEAR, speed: 0.25, period: 180, rise: 0.08 },
+  ];
+
+  for (const row of rows) {
+    const offset = (roadOffsetPx * row.speed) % row.period;
+    const first = Math.floor((roadOffsetPx * row.speed) / row.period);
+    ctx.fillStyle = row.colour;
+    ctx.beginPath();
+    ctx.moveTo(-row.period, horizon);
+    for (let i = -1; i * row.period - offset < width + row.period; i += 1) {
+      const x = i * row.period - offset;
+      const top = horizon - height * row.rise * (0.7 + 0.6 * seeded(3, first + i));
+      ctx.quadraticCurveTo(x + row.period / 2, top, x + row.period, horizon);
+    }
+    ctx.lineTo(width + row.period, horizon);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+/* ---------------------------------------------------------------- props */
+
+const PROP_SPACING = 150;
+
+/** Trees and bushes along the pavement, always in the same places. */
+export function drawProps(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  roadOffsetPx: number
+): void {
+  const horizon = height * HORIZON_FRACTION;
+  const bandHeight = height * (ROAD_Y_FRACTION - HORIZON_FRACTION);
+  const base = horizon + bandHeight * 0.8;
+  const offset = (roadOffsetPx * 0.6) % PROP_SPACING;
+  const first = Math.floor((roadOffsetPx * 0.6) / PROP_SPACING);
+
+  for (let i = -1; i * PROP_SPACING - offset < width + PROP_SPACING; i += 1) {
+    const x = i * PROP_SPACING - offset;
+    const pick = seeded(11, first + i);
+
+    if (pick < 0.45) {
+      const treeHeight = 34 + 10 * seeded(13, first + i);
+      ctx.fillStyle = TREE_TRUNK;
+      ctx.fillRect(x - 3, base - treeHeight, 6, treeHeight);
+      ctx.fillStyle = TREE_LEAVES;
+      ctx.beginPath();
+      ctx.arc(x - 6, base - treeHeight - 4, 13, 0, Math.PI * 2);
+      ctx.arc(x + 7, base - treeHeight - 1, 11, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (pick < 0.7) {
+      ctx.fillStyle = BUSH;
+      ctx.beginPath();
+      ctx.ellipse(x, base - 6, 16, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+/* ------------------------------------------------------- water and weather life */
+
+/** A fish that breaks the surface every few metres of water. */
+export function drawFish(
+  ctx: CanvasRenderingContext2D,
+  bands: RoadBand[],
+  height: number,
+  roadOffsetPx: number
+): void {
+  const thickness = height * ROAD_THICKNESS_FRACTION;
+  const period = 190;
+
+  for (const band of bands) {
+    if (band.segment.terrain !== 'water') continue;
+    const offset = (roadOffsetPx * 0.9) % period;
+
+    for (let x = band.xStart - offset; x < band.xEnd; x += period) {
+      if (x < band.xStart) continue;
+      const across = (x - band.xStart) / Math.max(1, band.xEnd - band.xStart);
+      const y = band.yStart + (band.yEnd - band.yStart) * across + thickness * 0.35;
+
+      ctx.fillStyle = FISH;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 7, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x - 7, y);
+      ctx.lineTo(x - 13, y - 4);
+      ctx.lineTo(x - 13, y + 4);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+/** Leaves hurrying past, faster than the road, when the wind is up. */
+export function drawLeaves(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  roadOffsetPx: number,
+  look: WeatherLook
+): void {
+  if (look.wind < 0.05) return;
+
+  ctx.save();
+  ctx.globalAlpha = look.wind;
+  ctx.fillStyle = LEAF;
+  for (let i = 0; i < 4; i += 1) {
+    const period = 320 + i * 70;
+    const x = width - (((roadOffsetPx * 2.2 + i * 180) % (width + period)) - period);
+    const y = height * (0.2 + 0.12 * i) + Math.sin(roadOffsetPx / 40 + i) * 12;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.sin(roadOffsetPx / 30 + i) * 0.9);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 6, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+const FOOT_SPLASH_MS = 260;
+
+/**
+ * What the ground does when a foot lands on it: a splash in water, a spreading
+ * ring in the rain, nothing on a dry road.
+ */
+export function drawFootSplash(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  x: number,
+  groundY: number,
+  scale: number
+): void {
+  const event = state.lastEvent;
+  if (!event) return;
+  const age = state.timeMs - event.atMs;
+  if (age < 0 || age > FOOT_SPLASH_MS) return;
+  if (event.kind === 'segment' || event.kind === 'skipped') return;
+
+  const here = segmentAt(state.distance, state.config.course).segment;
+  const inWater = here.terrain === 'water';
+  const inRain = here.weather === 'rain';
+  if (!inWater && !inRain) return;
+
+  const through = age / FOOT_SPLASH_MS;
+  ctx.save();
+  ctx.globalAlpha = 1 - through;
+  ctx.strokeStyle = SPLASH;
+  ctx.lineWidth = 2 * scale;
+
+  if (inWater) {
+    for (const angle of [-0.9, -0.3, 0.4]) {
+      const reach = (10 + 14 * through) * scale;
+      ctx.beginPath();
+      ctx.moveTo(x, groundY);
+      ctx.lineTo(
+        x + Math.cos(angle - Math.PI / 2) * reach,
+        groundY + Math.sin(angle - Math.PI / 2) * reach
+      );
+      ctx.stroke();
+    }
+  } else {
+    ctx.beginPath();
+    ctx.ellipse(
+      x,
+      groundY + 4 * scale,
+      (6 + 18 * through) * scale,
+      (2 + 6 * through) * scale,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.stroke();
   }
   ctx.restore();
 }

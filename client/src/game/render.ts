@@ -15,7 +15,6 @@
 //   answers.ts  what happens on screen when a foot lands
 //   hud.ts      the numbers along the top, and the banner
 
-import { segmentAt } from './course';
 import type { GameState } from './engine';
 import {
   MISS_KINDS,
@@ -32,12 +31,20 @@ import {
   ROAD_Y_FRACTION,
   RUNNER_X_FRACTION,
   buildRoad,
+  drawClouds,
+  drawFish,
+  drawFootSplash,
+  drawHills,
+  drawLeaves,
   drawPavement,
+  drawProps,
   drawRoad,
   drawSky,
   drawSkyline,
+  drawSun,
   drawWeather,
   roadYAt,
+  weatherLook,
 } from './render/scene';
 import { drawFootprints } from './render/target';
 
@@ -55,7 +62,6 @@ export function render(
 ): void {
   const { width, height, shirtColour } = options;
   const scale = Math.max(0.62, Math.min(1, width / 960));
-  const here = segmentAt(state.distance, state.config.course);
   const roadOffsetPx = state.distance / METERS_PER_PIXEL;
 
   ctx.save();
@@ -72,16 +78,26 @@ export function render(
     ctx.translate(Math.sin(answer.ageMs / 14) * SHAKE_PX * scale * fade, 0);
   }
 
-  drawSky(ctx, width, height, here.segment.weather);
+  // Back to front: sky, weather in the sky, the land, the city, the
+  // pavement and its props, the road, then what the weather does down here.
+  const look = weatherLook(state);
+  drawSky(ctx, width, height, look);
+  drawSun(ctx, width, height, look);
+  drawClouds(ctx, width, height, roadOffsetPx, look);
+  drawHills(ctx, width, height, roadOffsetPx);
   drawSkyline(ctx, width, height, roadOffsetPx);
   drawPavement(ctx, width, height, roadOffsetPx);
+  drawProps(ctx, width, height, roadOffsetPx);
 
   const bands = buildRoad(state, width, height);
   drawRoad(ctx, bands, width, height, roadOffsetPx);
-  drawWeather(ctx, width, height, here.segment.weather, roadOffsetPx);
+  drawFish(ctx, bands, height, roadOffsetPx);
+  drawWeather(ctx, width, height, look, roadOffsetPx);
+  drawLeaves(ctx, width, height, roadOffsetPx, look);
 
   const runnerX = width * RUNNER_X_FRACTION;
   const groundY = roadYAt(bands, runnerX, height * ROAD_Y_FRACTION);
+  drawFootSplash(ctx, state, runnerX, groundY, scale);
   drawRunner(ctx, state, runnerX, groundY, scale, answer, shirtColour);
   drawFootprints(ctx, state, runnerX, groundY, scale, answer);
   drawPopup(ctx, state, runnerX, groundY, scale, answer);

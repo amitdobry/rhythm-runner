@@ -95,3 +95,17 @@ export const RUNNER_FACE = '#1d2230';
 export const RUNNER_SHADOW = 'rgba(15, 18, 26, 0.22)';
 export const FOOT_READY = '#ffd23f'; // the shoe that must land next
 export const SWEAT = '#9fd8ff';
+
+// The living scenery: sun, clouds, hills, trees, water life.
+export const SUN = '#ffe9a8';
+export const SUN_PALE = 'rgba(255, 255, 255, 0.55)';
+export const CLOUD = '#ffffff';
+export const CLOUD_RAIN = '#8d97a4';
+export const HILL_FAR = '#8fa6b8';
+export const HILL_NEAR = '#7a9483';
+export const TREE_TRUNK = '#6b4b2f';
+export const TREE_LEAVES = '#4e8a52';
+export const BUSH = '#5c9a5f';
+export const FISH = '#f08a24';
+export const SPLASH = '#dff1fb';
+export const LEAF = '#c4923f';
