@@ -1,0 +1,2 @@
+# Keep line endings consistent on every machine (matches .editorconfig).
+* text=auto eol=lf
