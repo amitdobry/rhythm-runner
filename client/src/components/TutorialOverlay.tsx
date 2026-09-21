@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Foot } from '../game/config';
 import type { TutorialState } from '../game/tutorial';
+import { footForKey } from '../game/useGameLoop';
 import { T } from '../text/he';
 import { Footprint } from './Footprint';
 
@@ -26,14 +27,10 @@ export function TutorialOverlay({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return;
-      const key = event.key;
-      if (key === 'ArrowLeft' || key === 'f' || key === 'F') {
-        event.preventDefault();
-        onFoot('left');
-      } else if (key === 'ArrowRight' || key === 'j' || key === 'J') {
-        event.preventDefault();
-        onFoot('right');
-      }
+      const foot = footForKey(event);
+      if (!foot) return;
+      event.preventDefault();
+      onFoot(foot);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);

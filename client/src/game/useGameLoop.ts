@@ -21,6 +21,25 @@ export interface GameLoop {
   countdown: number | null;
 }
 
+/**
+ * Which foot a key press means.
+ *
+ * Matched on event.code, the PHYSICAL key, not event.key, the letter it
+ * produces: on a Hebrew keyboard the F key reports "כ" and J reports "ח", so
+ * matching letters left half our players unable to play. The letters stay as
+ * a fallback for the rare browser that reports no code.
+ */
+export function footForKey(event: KeyboardEvent): Foot | null {
+  const code = event.code;
+  if (code === 'ArrowLeft' || code === 'KeyF') return 'left';
+  if (code === 'ArrowRight' || code === 'KeyJ') return 'right';
+
+  const key = event.key;
+  if (key === 'ArrowLeft' || key === 'f' || key === 'F') return 'left';
+  if (key === 'ArrowRight' || key === 'j' || key === 'J') return 'right';
+  return null;
+}
+
 export interface GameLoopOptions {
   /** false while the practice overlay is on top and owns the input itself. */
   listenToInput?: boolean;
@@ -206,14 +225,10 @@ export function useGameLoop(
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return; // holding a key is not a stream of steps
-      const key = event.key;
-      if (key === 'ArrowLeft' || key === 'f' || key === 'F') {
-        event.preventDefault();
-        pressFoot('left');
-      } else if (key === 'ArrowRight' || key === 'j' || key === 'J') {
-        event.preventDefault();
-        pressFoot('right');
-      }
+      const foot = footForKey(event);
+      if (!foot) return;
+      event.preventDefault();
+      pressFoot(foot);
     };
 
     const onPointerDown = (event: PointerEvent) => {
