@@ -711,6 +711,21 @@ No celebration when `personalBest` is false; the ranks line still shows.
 
 ---
 
+## M7 outcome (reviewed 2026-09-21)
+
+Done in commits `998d426` to `40bb5e7`: 47 server tests (29 + 18), 69 client
+tests, typecheck clean, engine, render, sounds and Vercel files untouched.
+Reviewed line by line: `pin.ts` uses scrypt (N 16384, 16-byte salt, 32-byte
+key) with `timingSafeEqual`; the enter route answers the five cases exactly as
+specified; the PIN is never logged or returned; `reset-pin` hides behind the
+admin key with a 404; the weekly key is computed in Asia/Jerusalem by stepping
+back to Sunday. Production: bad PIN 400, `top?range=week` answers with
+`weekStart` 2026-09-20 and `weekEnd` 2026-09-27 and an empty board (Amit
+dropped the test data), `range=x` 400, `reset-pin` without key 404.
+
+Awaiting Amit's play-test: claim a name with a PIN, clear storage, wrong PIN
+refused, right PIN accepted, personal-best banner on a better run.
+
 ## M8. Character polish (outline; spec before starting)
 
 Face and expressions, squash and stretch, three colourways, finish climax,
