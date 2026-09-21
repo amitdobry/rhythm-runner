@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePlayer } from '../player/PlayerContext';
-import {
-  fetchMyBest,
-  fetchTopScores,
-  type MyScores,
-  type Platform,
-  type ScoreRow,
-} from '../services/api';
-import { detectPlatform, readOverride } from '../game/platform';
+import { fetchMyBest, fetchTopScores, type MyScores, type ScoreRow } from '../services/api';
 import { T, fill, formatNumber } from '../text/he';
 import { track } from '../analytics/analytics';
 import { NicknameForm } from '../components/NicknameForm';
@@ -23,7 +16,6 @@ export function LandingPage() {
   const { player, logout } = usePlayer();
   const [showNickname, setShowNickname] = useState(false);
   const [showBehind, setShowBehind] = useState(false);
-  const platform = usePlatform();
 
   useEffect(() => {
     track('landing_viewed');
@@ -38,12 +30,12 @@ export function LandingPage() {
         {T.playNow}
       </Link>
 
-      <HighScores nickname={player?.nickname} platform={platform} />
+      <HighScores nickname={player?.nickname} />
 
       {player ? (
         <section className="panel who">
           <p className="hello">{fill(T.hello, { name: player.nickname })}</p>
-          <MyBestLine platform={platform} />
+          <MyBestLine />
           <button onClick={logout}>{T.logOut}</button>
         </section>
       ) : showNickname ? (
@@ -78,13 +70,7 @@ export function LandingPage() {
   );
 }
 
-/** What the player asked for wins; otherwise we guess from the device. */
-function usePlatform(): Platform {
-  const [platform] = useState<Platform>(() => readOverride() ?? detectPlatform());
-  return platform;
-}
-
-function MyBestLine({ platform }: { platform: Platform }) {
+function MyBestLine() {
   const [mine, setMine] = useState<MyScores | null>(null);
 
   useEffect(() => {
@@ -94,21 +80,19 @@ function MyBestLine({ platform }: { platform: Platform }) {
   }, []);
 
   if (!mine) return null;
-  return <p className="muted">{bestLine(mine, platform)}</p>;
+  return <p className="muted">{bestLine(mine)}</p>;
 }
 
 /** "one run" is not "1 runs": Hebrew needs its own sentence for a single run. */
-export function bestLine(mine: MyScores, platform: Platform): string {
-  const best = mine.best[platform];
-  const score = best ? formatNumber(best.score) : '—';
+export function bestLine(mine: MyScores): string {
+  const score = mine.best ? formatNumber(mine.best.score) : '—';
   return mine.runs === 1
     ? fill(T.yourBestOne, { score })
     : fill(T.yourBest, { score, runs: formatNumber(mine.runs) });
 }
 
-/** The two boards, and where the player sits on the one they play. */
-function HighScores({ nickname, platform }: { nickname?: string; platform: Platform }) {
-  const [tab, setTab] = useState<Platform>(platform);
+/** The board, and where the player sits on it. */
+function HighScores({ nickname }: { nickname?: string }) {
   const [rows, setRows] = useState<ScoreRow[] | null>(null);
   const [mine, setMine] = useState<MyScores | null>(null);
   const [failed, setFailed] = useState(false);
@@ -118,7 +102,7 @@ function HighScores({ nickname, platform }: { nickname?: string; platform: Platf
     let current = true;
     setRows(null);
     setFailed(false);
-    fetchTopScores(tab, 10)
+    fetchTopScores(10)
       .then((found) => {
         if (!current) return;
         setRows(found);
@@ -131,7 +115,7 @@ function HighScores({ nickname, platform }: { nickname?: string; platform: Platf
     return () => {
       current = false;
     };
-  }, [tab]);
+  }, []);
 
   useEffect(() => {
     fetchMyBest()
@@ -142,15 +126,6 @@ function HighScores({ nickname, platform }: { nickname?: string; platform: Platf
   return (
     <section className="panel scores">
       <h2>{T.highScores}</h2>
-
-      <div className="score-tabs">
-        <button className={tab === 'pc' ? 'chosen' : ''} onClick={() => setTab('pc')}>
-          {T.tabPc}
-        </button>
-        <button className={tab === 'mobile' ? 'chosen' : ''} onClick={() => setTab('mobile')}>
-          {T.tabMobile}
-        </button>
-      </div>
 
       {failed && <p className="muted">{T.scoresUnavailable}</p>}
       {!failed && rows !== null && rows.length === 0 && <p className="muted">{T.noRunsYet}</p>}
@@ -182,7 +157,7 @@ function HighScores({ nickname, platform }: { nickname?: string; platform: Platf
         </table>
       )}
 
-      {mine && <p className="muted">{bestLine(mine, tab)}</p>}
+      {mine && <p className="muted">{bestLine(mine)}</p>}
     </section>
   );
 }

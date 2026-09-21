@@ -43,8 +43,6 @@ export const T = Object.freeze({
   rank: 'מקום {n} בטבלה',
   scoreNotSaved: 'התוצאה לא נשמרה, אבל הריצה הייתה אמיתית',
   highScores: 'טבלת השיאים',
-  tabPc: 'מחשב',
-  tabMobile: 'טלפון',
   yourBest: 'השיא שלכם: {score} · {runs} ריצות',
   yourBestOne: 'השיא שלכם: {score} · ריצה אחת',
   noRunsYet: 'עוד אין ריצות. תהיו הראשונים!',

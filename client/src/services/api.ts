@@ -87,7 +87,7 @@ export interface ScoreRow {
 }
 
 export interface MyScores {
-  best: { pc: ScoreRow | null; mobile: ScoreRow | null };
+  best: ScoreRow | null;
   runs: number;
 }
 
@@ -98,11 +98,13 @@ export function submitScore(summary: RunSummary): Promise<{ saved: ScoreRow; ran
   });
 }
 
-/** The leaderboard. This one works before you have entered a nickname. */
-export async function fetchTopScores(platform: Platform, limit?: number): Promise<ScoreRow[]> {
-  const query = new URLSearchParams({ platform });
-  if (limit !== undefined) query.set('limit', String(limit));
-  const { rows } = await request<{ rows: ScoreRow[] }>(`/api/scores/top?${query.toString()}`);
+/**
+ * The leaderboard: one board for everyone, phone and keyboard together.
+ * This one works before you have entered a nickname.
+ */
+export async function fetchTopScores(limit?: number): Promise<ScoreRow[]> {
+  const query = limit === undefined ? '' : `?limit=${limit}`;
+  const { rows } = await request<{ rows: ScoreRow[] }>(`/api/scores/top${query}`);
   return rows;
 }
 
