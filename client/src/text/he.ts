@@ -63,10 +63,14 @@ export const T = Object.freeze({
   behindTitle: 'מאחורי המשחק',
   behindSteps:
     '1. עמית תיאר את רעיון המשחק. 2. ה-AI עזר לתכנן את החוקים. 3. ה-AI כתב קוד. 4. עמית בדק, תיקן ושיפר. 5. ביחד הפכו רעיון למשחק חי.',
-  behindRule: 'חוק אחד מתוך המנוע: צעד מושלם = מהירות +2, אנרגיה +3, קומבו +1',
+  behindRule: 'חוק אחד מתוך המנוע: צעד מושלם = מהירות +2.5, אנרגיה +3, קומבו +1',
   behindBridge: 'בסדנה הילדים לומדים בדיוק את הדרך הזאת: מרעיון לאפליקציה.',
   behindClose: 'סגירה',
   builtWith: 'נבנה על ידי עמית עם Claude Code',
+
+  // Short popups over the runner, where a whole sentence would not fit.
+  popupSkipped: 'פספוס',
+  popupStumble: 'אופס!',
 
   // Added in the same register, for places the table did not name.
   name: 'שם',

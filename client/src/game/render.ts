@@ -66,8 +66,6 @@ const BAR_TRACK = 'rgba(255, 255, 255, 0.22)';
 const BAR_SPEED = '#4ea8ff';
 const BAR_ENERGY = '#3ddc84';
 const BAR_ENERGY_LOW = '#e8503a';
-const PACE_NEEDLE = '#ffd23f';
-const PACE_CENTRE = '#f2f4f8';
 
 const BANNER_TEXT = '#ffffff';
 const BANNER_SHADOW = 'rgba(15, 18, 26, 0.55)';
@@ -87,6 +85,25 @@ const LAMP_SPACING = 190;
 const DASH_LENGTH = 26;
 const DASH_PERIOD = 60;
 const FLASH_MS = 150;
+
+// "Every step answered": how long the game reacts to a press, and how big.
+const ANSWER_MS = 220; // lunge, popup, bar flash
+const STAR_MS = 350; // the burst lives a little longer
+const SHAKE_MS = 120;
+const SHAKE_PX = 2;
+const LUNGE_PERFECT = 14;
+const LUNGE_GOOD = 7;
+const LEAN_BACK = 8;
+const POPUP_RISE = 30;
+const POPUP_SIZE = 19;
+const STARS_PERFECT = 8;
+const STARS_GOOD = 3;
+const STAR_MIN = 4;
+const STAR_MAX = 7;
+const STAR_REACH = 54; // how far a star travels before it fades out
+const STREAK_COUNT = 6;
+const STREAK_COLOUR = 'rgba(255, 255, 255, 0.75)';
+const VIGNETTE_COLOUR = 'rgba(232, 80, 58, 0.5)';
 const FOOT_GAP = 46; // x scale: far enough apart that one target does not reach the other foot
 // The radius the flying ring reaches at the due moment, and the middle of the
 // green band. Everything else on the target is a ratio of it.
@@ -94,6 +111,31 @@ const TARGET_BASE = 22;
 const STEP_EVENTS: GameEvent[] = ['perfect', 'good', 'tooFast', 'tooSlow', 'wrongFoot'];
 const BANNER_MS = 1500;
 const FONT = 'Heebo, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+/** What the game is saying about the step that just happened. */
+interface Answer {
+  kind: GameEvent;
+  ageMs: number;
+  through: number; // 0..1 across ANSWER_MS
+  eased: number; // ease-out of through
+}
+
+function answerNow(state: GameState): Answer | null {
+  const event = state.lastEvent;
+  if (!event) return null;
+  const ageMs = state.timeMs - event.atMs;
+  if (ageMs < 0 || ageMs > STAR_MS) return null;
+  const through = Math.min(1, ageMs / ANSWER_MS);
+  return { kind: event.kind, ageMs, through, eased: 1 - (1 - through) * (1 - through) };
+}
+
+const MISS_KINDS: GameEvent[] = ['tooFast', 'tooSlow', 'wrongFoot'];
+
+/** Same state, same stars: the angles are seeded, never rolled per frame. */
+function seeded(seed: number, index: number): number {
+  const x = Math.sin(seed * 0.0173 + index * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
 
 /** One stretch of road, already turned into pixels. */
 interface RoadBand {
@@ -119,6 +161,15 @@ export function render(
   // Words are Hebrew; numbers are set back to ltr where they are drawn.
   ctx.direction = 'rtl';
 
+  const answer = answerNow(state);
+
+  // A miss shakes the whole scene. The HUD stays still so the numbers stay readable.
+  ctx.save();
+  if (answer && MISS_KINDS.includes(answer.kind) && answer.ageMs <= SHAKE_MS) {
+    const fade = 1 - answer.ageMs / SHAKE_MS;
+    ctx.translate(Math.sin(answer.ageMs / 14) * SHAKE_PX * scale * fade, 0);
+  }
+
   drawSky(ctx, width, height, here.segment.weather);
   drawSkyline(ctx, width, height, roadOffsetPx);
   drawPavement(ctx, width, height, roadOffsetPx);
@@ -129,11 +180,14 @@ export function render(
 
   const runnerX = width * RUNNER_X_FRACTION;
   const groundY = roadYAt(bands, runnerX, height * ROAD_Y_FRACTION);
-  drawRunner(ctx, state, runnerX, groundY, scale);
-  drawFootprints(ctx, state, runnerX, groundY, scale);
+  drawRunner(ctx, state, runnerX, groundY, scale, answer);
+  drawFootprints(ctx, state, runnerX, groundY, scale, answer);
+  drawPopup(ctx, state, runnerX, groundY, scale, answer);
+  ctx.restore();
 
+  drawVignette(ctx, width, height, answer);
   drawBanner(ctx, state, width, height, scale);
-  drawHud(ctx, state, width, scale);
+  drawHud(ctx, state, width, scale, answer);
 
   ctx.restore();
 }
@@ -423,20 +477,64 @@ function drawWeather(
 
 // ---------------------------------------------------------------- runner
 
+/** How far forward (or back) the runner is thrown, in unscaled pixels. */
+function lungeFor(answer: Answer | null): number {
+  if (!answer) return 0;
+  const amount =
+    answer.kind === 'perfect'
+      ? LUNGE_PERFECT
+      : answer.kind === 'good'
+        ? LUNGE_GOOD
+        : MISS_KINDS.includes(answer.kind)
+          ? -LEAN_BACK
+          : 0;
+  return amount * Math.sin(Math.PI * answer.through);
+}
+
+/** Lines trailing off behind a runner who just nailed it. */
+function drawSpeedStreaks(
+  ctx: CanvasRenderingContext2D,
+  bodyHeight: number,
+  scale: number,
+  answer: Answer
+): void {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, 1 - answer.through);
+  ctx.strokeStyle = STREAK_COLOUR;
+  ctx.lineWidth = 2 * scale;
+  for (let i = 0; i < STREAK_COUNT; i += 1) {
+    const y = -bodyHeight * (0.12 + 0.13 * i);
+    const length = (16 + 16 * seeded(1, i)) * scale;
+    const back = -(18 + 26 * answer.eased) * scale;
+    ctx.beginPath();
+    ctx.moveTo(back, y);
+    ctx.lineTo(back - length, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawRunner(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   x: number,
   groundY: number,
-  scale: number
+  scale: number,
+  answer: Answer | null
 ): void {
   const stumbling = state.stumbleUntilMs !== null;
   const bodyHeight = 68 * scale;
   const bodyWidth = 25 * scale;
   const headRadius = 11 * scale;
 
+  // A good step throws the runner forward and springs back; a bad one rocks
+  // them backwards. This is the fastest way to feel that the press landed.
+  const lunge = lungeFor(answer) * scale;
+
   ctx.save();
-  ctx.translate(x, groundY);
+  ctx.translate(x + lunge, groundY);
+
+  if (answer && answer.kind === 'perfect') drawSpeedStreaks(ctx, bodyHeight, scale, answer);
   if (stumbling) ctx.rotate((20 * Math.PI) / 180);
 
   // legs: the foot that must land next is forward and lit up
@@ -482,7 +580,8 @@ function drawFootprints(
   state: GameState,
   x: number,
   groundY: number,
-  scale: number
+  scale: number,
+  answer: Answer | null
 ): void {
   const gap = FOOT_GAP * scale;
   const radius = 13 * scale;
@@ -504,6 +603,11 @@ function drawFootprints(
     ctx.ellipse(footX, y, radius * 0.66, radius, 0, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // The burst comes from the target the player was aiming at, which sat under
+  // the foot that just stepped.
+  const steppedX = steppedFoot === 'left' ? x - gap : x + gap;
+  drawStars(ctx, state, steppedX, y, scale, answer);
 
   if (state.lastEvent?.kind === 'wrongFoot' && flash) {
     ctx.fillStyle = FLASH_BAD;
@@ -583,6 +687,121 @@ function resultColour(kind: GameEvent): string | null {
   return null;
 }
 
+/** A burst of small stars from the target's rim: eight for a perfect step, three for a good one. */
+function drawStars(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  x: number,
+  y: number,
+  scale: number,
+  answer: Answer | null
+): void {
+  if (!answer) return;
+  const count = answer.kind === 'perfect' ? STARS_PERFECT : answer.kind === 'good' ? STARS_GOOD : 0;
+  if (count === 0) return;
+
+  const seed = state.lastEvent?.atMs ?? 0;
+  const life = Math.min(1, answer.ageMs / STAR_MS);
+  const eased = 1 - (1 - life) * (1 - life); // fast at first, then slowing
+  const rim = TARGET_BASE * scale;
+
+  ctx.save();
+  for (let i = 0; i < count; i += 1) {
+    // Upward bias, so the burst reads as celebration rather than an explosion.
+    const angle = -Math.PI / 2 + (seeded(seed, i) - 0.5) * Math.PI * 1.2;
+    const reach = rim + STAR_REACH * scale * eased;
+    const size = (STAR_MIN + (STAR_MAX - STAR_MIN) * seeded(seed, i + 40)) * scale;
+    ctx.globalAlpha = Math.max(0, 1 - life);
+    ctx.fillStyle = i % 2 === 0 ? FLASH_GOOD : '#ffffff';
+    drawStar(ctx, x + Math.cos(angle) * reach, y + Math.sin(angle) * reach, size);
+  }
+  ctx.restore();
+}
+
+function drawStar(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number): void {
+  ctx.beginPath();
+  for (let point = 0; point < 10; point += 1) {
+    const r = point % 2 === 0 ? radius : radius * 0.45;
+    const angle = (Math.PI / 5) * point - Math.PI / 2;
+    const px = x + Math.cos(angle) * r;
+    const py = y + Math.sin(angle) * r;
+    if (point === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** The word or number that floats up over the runner's head. */
+function drawPopup(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  x: number,
+  groundY: number,
+  scale: number,
+  answer: Answer | null
+): void {
+  if (!answer || answer.through >= 1) return;
+  const speed = state.config.speed;
+
+  let text: string | null = null;
+  let colour = FLASH_BAD;
+  let numeric = false;
+
+  if (answer.kind === 'perfect') {
+    text = `+${speed.perfectBoost}`;
+    colour = FLASH_PERFECT;
+    numeric = true;
+  } else if (answer.kind === 'good') {
+    text = `+${speed.goodBoost}`;
+    colour = FLASH_GOOD;
+    numeric = true;
+  } else if (answer.kind === 'tooFast') text = T.tooFast;
+  else if (answer.kind === 'tooSlow') text = T.tooSlow;
+  else if (answer.kind === 'wrongFoot') text = T.otherFoot;
+  else if (answer.kind === 'skipped') {
+    text = T.popupSkipped;
+    colour = HUD_MUTED;
+  } else if (answer.kind === 'stumble') text = T.popupStumble;
+
+  if (!text) return;
+
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, 1 - answer.through);
+  ctx.fillStyle = colour;
+  ctx.font = `bold ${POPUP_SIZE * scale}px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.direction = numeric ? 'ltr' : 'rtl';
+  ctx.fillText(text, x, groundY - 96 * scale - POPUP_RISE * scale * answer.eased);
+  ctx.restore();
+}
+
+/** Red creeping in from the edges when the runner goes down. */
+function drawVignette(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  answer: Answer | null
+): void {
+  if (!answer || answer.kind !== 'stumble' || answer.through >= 1) return;
+  const edge = ctx.createRadialGradient(
+    width / 2,
+    height / 2,
+    Math.min(width, height) * 0.25,
+    width / 2,
+    height / 2,
+    Math.max(width, height) * 0.72
+  );
+  edge.addColorStop(0, 'rgba(232, 80, 58, 0)');
+  edge.addColorStop(1, VIGNETTE_COLOUR);
+
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, 1 - answer.through);
+  ctx.fillStyle = edge;
+  ctx.fillRect(0, 0, width, height);
+  ctx.restore();
+}
+
 function flashColour(state: GameState): string | null {
   const event = state.lastEvent;
   if (!event) return null;
@@ -639,7 +858,8 @@ function drawHud(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   width: number,
-  scale: number
+  scale: number,
+  answer: Answer | null
 ): void {
   const config = state.config;
   const panelHeight = 62 * scale;
@@ -665,6 +885,8 @@ function drawHud(
   // speed and energy bars
   const barX = pad + 58 * scale;
   const barWidth = 120 * scale;
+  // The speed bar answers the step in its colour, for as long as the popup lasts.
+  const barFlash = answer && answer.through < 1 ? resultColour(answer.kind) : null;
   drawBar(
     ctx,
     barX,
@@ -672,7 +894,7 @@ function drawHud(
     barWidth,
     9 * scale,
     state.speed / config.speed.max,
-    BAR_SPEED
+    barFlash ?? BAR_SPEED
   );
   const energyLow = state.energy < 30;
   drawBar(
@@ -703,8 +925,6 @@ function drawHud(
   ctx.font = `${11 * scale}px ${FONT}`;
   ctx.fillText(T.combo, comboX + 74 * scale, pad + 14 * scale);
   ctx.fillText(T.score, comboX + 74 * scale, pad + 34 * scale);
-
-  drawPaceMeter(ctx, state, width, scale, panelHeight);
 }
 
 function drawBar(
@@ -720,41 +940,6 @@ function drawBar(
   ctx.fillRect(x, y, width, height);
   ctx.fillStyle = colour;
   ctx.fillRect(x, y, width * clamp01(fraction), height);
-}
-
-/** Says whether the last step was early or late, so the player can correct. */
-function drawPaceMeter(
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  width: number,
-  scale: number,
-  panelHeight: number
-): void {
-  const meterWidth = Math.min(200 * scale, width * 0.28);
-  const x = width - meterWidth - 12 * scale;
-  const y = panelHeight * 0.52;
-  const limit = state.config.goodWindowMs * 2;
-
-  ctx.fillStyle = BAR_TRACK;
-  ctx.fillRect(x, y - 4 * scale, meterWidth, 8 * scale);
-
-  ctx.fillStyle = PACE_CENTRE;
-  ctx.fillRect(x + meterWidth / 2 - 1, y - 9 * scale, 2, 18 * scale);
-
-  if (state.lastOffsetMs !== null) {
-    const clamped = Math.max(-limit, Math.min(limit, state.lastOffsetMs));
-    const needleX = x + meterWidth / 2 + (clamped / limit) * (meterWidth / 2);
-    ctx.fillStyle = PACE_NEEDLE;
-    ctx.fillRect(needleX - 2 * scale, y - 11 * scale, 4 * scale, 22 * scale);
-  }
-
-  ctx.fillStyle = HUD_MUTED;
-  ctx.font = `${10 * scale}px ${FONT}`;
-  ctx.textAlign = 'left';
-  ctx.fillText(T.tooFast, x, y + 20 * scale);
-  ctx.textAlign = 'right';
-  ctx.fillText(T.tooSlow, x + meterWidth, y + 20 * scale);
-  ctx.textAlign = 'left';
 }
 
 function multiplierOf(state: GameState): number {
