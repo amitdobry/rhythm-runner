@@ -46,6 +46,7 @@ import {
   roadYAt,
   weatherLook,
 } from './render/scene';
+import { drawFinish } from './render/finish';
 import { drawFootprints } from './render/target';
 
 export interface RenderOptions {
@@ -101,6 +102,9 @@ export function render(
   drawRunner(ctx, state, runnerX, groundY, scale, answer, shirtColour);
   drawFootprints(ctx, state, runnerX, groundY, scale, answer);
   drawPopup(ctx, state, runnerX, groundY, scale, answer);
+
+  // The last five seconds happen on top of the scene, under the HUD.
+  drawFinish(ctx, state, width, height, scale, runnerX, groundY);
   ctx.restore();
 
   drawVignette(ctx, width, height, answer);

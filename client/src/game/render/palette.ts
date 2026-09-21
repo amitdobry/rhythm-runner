@@ -109,3 +109,7 @@ export const BUSH = '#5c9a5f';
 export const FISH = '#f08a24';
 export const SPLASH = '#dff1fb';
 export const LEAF = '#c4923f';
+
+// The finish line.
+export const TAPE = '#e8503a';
+export const TAPE_POLE = '#f2f4f8';
