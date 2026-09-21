@@ -10,3 +10,6 @@ dist/
 
 # Local Claude Code preview configuration; per machine, not part of the product.
 .claude/
+
+# Vercel CLI link data; per machine.
+.vercel/
