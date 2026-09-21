@@ -165,6 +165,7 @@ The string table. Use exactly these; add missing ones in the same register
 | tabPc               | מחשב                                                                                                                             |
 | tabMobile           | טלפון                                                                                                                            |
 | yourBest            | השיא שלכם: {score} · {runs} ריצות                                                                                                |
+| yourBestOne         | השיא שלכם: {score} · ריצה אחת                                                                                                    |
 | noRunsYet           | עוד אין ריצות. תהיו הראשונים!                                                                                                    |
 | scoresUnavailable   | הטבלה לא זמינה כרגע                                                                                                              |
 | tutorialTitle       | בואו נתרגל                                                                                                                       |
@@ -189,7 +190,7 @@ The string table. Use exactly these; add missing ones in the same register
 
 ```text
 /        LandingPage   brand, tagline, huge "מתחילים!" -> /play
-                       under it: top 5 of the detected platform (public), "כבר שיחקתי, יש לי כינוי"
+                       under it: the full "High scores" panel (public, default tab = detected platform), then "כבר שיחקתי, יש לי כינוי"
                        (expands NicknameForm inline; after entering: "שלום, X", personal best, "יציאה"),
                        the full High scores panel (as in M4), "איך בינה מלאכותית עזרה..." link (BehindTheGame),
                        footer "נבנה על ידי עמית עם Claude Code"
@@ -378,6 +379,39 @@ Acceptance: a first-time adult on PC finishes a run with energy above 0, sees
 green often, and can say after one run which of their steps were good and
 which were not, without being told.
 
+### M6 outcome, steps a-f (reviewed 2026-09-21)
+
+Done in commits `10e6f22` to `3672cff`: 29 server tests, 64 client tests,
+typecheck clean, engine files and balance untouched, Vercel files untouched.
+Verified on production by the implementer: Hebrew RTL landing, practice with
+four pad taps into the countdown, Hebrew HUD, marker remembered, events
+routes answering. Items 7 (dartboard) done; item 8 not started, authorised
+now as its own commits.
+
+Implementer decisions, all accepted and now part of the spec:
+
+- Dartboard `base` is 22 x scale (the old ring's 13 gave a 3 px green band)
+  and the footprints are 46 x scale apart. The formulas define the target;
+  the prose above was corrected to match them (green is a band, red centre).
+- `he.test.ts` strips `{name}`-style placeholders before the Latin check.
+- Six strings added: `name`, `meters`, `device`, `savingScore`, `entering`,
+  `enterFailed`.
+- The health line is gone from the landing page. The platform toggle stays on
+  the pre-start overlay, labelled מחשב / טלפון. After "דלגו" the pre-start
+  overlay shows; after completing the practice the countdown starts by itself.
+- `run_abandoned.atSeconds` is timed in `PlayPage` with `Date.now()` (allowed
+  there), capped at `runSeconds`.
+- `readAdminKey()` in `config.ts`; the events TTL constant lives in
+  `mongo.ts`; `?days=` clamps to 1-90; `BehindTheGame` was built with the
+  landing page.
+
+Two small fixes, to be done with item 8:
+
+- Remove the separate top 5 on the landing page; the "High scores" panel moves
+  up to sit directly under the מתחילים! button. Same names twice was noise.
+- Grammar: when `runs === 1` use `yourBestOne` ("ריצה אחת"); otherwise
+  `yourBest`.
+
 ### Done when
 
 - On a phone, a fresh visit to `/?ref=LEAF5` reaches the results screen with taps
@@ -410,7 +444,9 @@ Replace the single pulsing footprint ring with a **static target** and a
 **moving ring**, so the player sees exactly when to step:
 
 - The target sits under the due foot: three concentric zones like a dartboard.
-  Red outside, a yellow band, a green disc in the middle.
+  From the rim inward: red, a yellow band, a **green band** at the due
+  radius, a yellow band, and a red centre (the centre means "far too late").
+  The formulas below are the definition; this sentence only describes them.
 - The moving ring starts large right after the previous step and shrinks
   linearly towards the centre, reaching the edge of the green disc exactly at
   `nextDueMs`. Step when the ring is on green.

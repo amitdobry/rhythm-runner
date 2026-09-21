@@ -19,14 +19,14 @@ Also read `../CLAUDE.md` (rules for Claude Code sessions) and `../README.md`
 
 ## Status
 
-| Milestone                      | State | Where to look                          |
-| ------------------------------ | ----- | -------------------------------------- |
-| Phase 0 - foundation           | done  | PHASE-0.md                             |
-| M1 - hosted on Vercel          | done  | PHASE-1.md, DEPLOY.md                  |
-| M2 - engine with tests         | done  | PHASE-1-BUILD.md, section M2           |
-| M3 - playable on PC and phone  | done  | PHASE-1-BUILD.md, section M3           |
-| M4 - scores and leaderboards   | done  | PHASE-1-BUILD.md, section M4, API.md   |
-| M5 - polish and hand-over      | done  | PHASE-1-BUILD.md, section M5           |
-| Phase 2 - making the demo sell | next  | PHASE-2.md, PHASE-2-BUILD.md (M6 next) |
+| Milestone                      | State                                                           | Where to look                        |
+| ------------------------------ | --------------------------------------------------------------- | ------------------------------------ |
+| Phase 0 - foundation           | done                                                            | PHASE-0.md                           |
+| M1 - hosted on Vercel          | done                                                            | PHASE-1.md, DEPLOY.md                |
+| M2 - engine with tests         | done                                                            | PHASE-1-BUILD.md, section M2         |
+| M3 - playable on PC and phone  | done                                                            | PHASE-1-BUILD.md, section M3         |
+| M4 - scores and leaderboards   | done                                                            | PHASE-1-BUILD.md, section M4, API.md |
+| M5 - polish and hand-over      | done                                                            | PHASE-1-BUILD.md, section M5         |
+| Phase 2 - making the demo sell | M6 a-g done, item 8 next PHASE-2.md, PHASE-2-BUILD.md (M6 next) |
 
 Production: <https://rhythm-runner-eight.vercel.app>
