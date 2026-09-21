@@ -39,4 +39,10 @@ describe('upcomingSegments', () => {
     expect(found.map((position) => position.index)).toEqual([0, 1, 2]);
     expect(found[2].startMeters).toBe(100);
   });
+
+  it('keeps counting metres forward where the course starts again', () => {
+    const found = upcomingSegments(400, LEVEL_1, 100);
+    expect(found.map((position) => position.index)).toEqual([8, 0, 1]);
+    expect(found.map((position) => position.aheadMeters)).toEqual([-50, 10, 70]);
+  });
 });

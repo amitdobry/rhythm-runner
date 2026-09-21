@@ -8,6 +8,7 @@ export interface SegmentPosition {
   segment: Segment;
   startMeters: number; // where this segment starts, in course-loop metres
   metersIntoSegment: number;
+  aheadMeters: number; // how far in front of the runner this segment starts; negative = already on it
 }
 
 /** How long one full loop of the course is. */
@@ -25,7 +26,8 @@ export function segmentAt(distanceMeters: number, course: Segment[]): SegmentPos
   for (let index = 0; index < course.length; index += 1) {
     const segment = course[index];
     if (into < startMeters + segment.lengthMeters) {
-      return { index, segment, startMeters, metersIntoSegment: into - startMeters };
+      const metersIntoSegment = into - startMeters;
+      return { index, segment, startMeters, metersIntoSegment, aheadMeters: -metersIntoSegment };
     }
     startMeters += segment.lengthMeters;
   }
@@ -34,13 +36,21 @@ export function segmentAt(distanceMeters: number, course: Segment[]): SegmentPos
   const index = course.length - 1;
   const segment = course[index];
   const lastStart = loopLength - segment.lengthMeters;
-  return { index, segment, startMeters: lastStart, metersIntoSegment: into - lastStart };
+  const metersIntoSegment = into - lastStart;
+  return {
+    index,
+    segment,
+    startMeters: lastStart,
+    metersIntoSegment,
+    aheadMeters: -metersIntoSegment,
+  };
 }
 
 /**
  * The segment the runner is on plus every segment that starts within
  * lookAheadMeters in front. The renderer uses this to draw the road ahead.
- * Segments that have not been reached yet report metersIntoSegment 0.
+ * aheadMeters keeps growing past the end of the loop, so the road can be drawn
+ * as one straight line even where the course starts again.
  */
 export function upcomingSegments(
   distanceMeters: number,
@@ -62,6 +72,7 @@ export function upcomingSegments(
       segment,
       startMeters: segmentStartMeters(index, course),
       metersIntoSegment: 0,
+      aheadMeters: metersAhead,
     });
     metersAhead += segment.lengthMeters;
   }

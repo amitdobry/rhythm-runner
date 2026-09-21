@@ -28,6 +28,7 @@ export interface GameState {
   expectedFoot: Foot; // which foot should land next; 'left' at the start
   lastOffsetMs: number | null; // signed error of the last step, for the pace meter (negative = early)
   segmentIndex: number; // current segment, so a change can be announced
+  segmentChangedAtMs: number | null; // when the runner last crossed into a new segment
   stumbleUntilMs: number | null; // null = not stumbling
   lastEvent: { kind: GameEvent; atMs: number } | null; // for the renderer to flash
 }
@@ -60,6 +61,7 @@ export function createGame(config: GameConfig = DEFAULT_CONFIG): GameState {
     expectedFoot: 'left',
     lastOffsetMs: null,
     segmentIndex: 0,
+    segmentChangedAtMs: null,
     stumbleUntilMs: null,
     lastEvent: null,
   };
@@ -88,6 +90,9 @@ export function tick(state: GameState, deltaMs: number): GameState {
   const config = state.config;
   const endMs = config.runSeconds * 1000;
   const time = Math.min(state.timeMs + deltaMs, endMs);
+  // The last tick of a run is cut short by the clamp above. Only the time that
+  // really passed may drain speed and move the runner.
+  const elapsed = time - state.timeMs;
 
   let speed = state.speed;
   let energy = state.energy;
@@ -98,6 +103,7 @@ export function tick(state: GameState, deltaMs: number): GameState {
   let nextDueMs = state.nextDueMs;
   let expectedFoot = state.expectedFoot;
   let segmentIndex = state.segmentIndex;
+  let segmentChangedAtMs = state.segmentChangedAtMs;
   let stumbleUntilMs = state.stumbleUntilMs;
   let lastEvent = state.lastEvent;
 
@@ -113,12 +119,12 @@ export function tick(state: GameState, deltaMs: number): GameState {
     speed = config.speed.stumbleSpeed;
   } else {
     const weather = config.weather[segmentAt(state.distance, config.course).segment.weather];
-    const lost = (config.speed.decayPerSecond * weather.decayFactor * deltaMs) / 1000;
+    const lost = (config.speed.decayPerSecond * weather.decayFactor * elapsed) / 1000;
     speed = Math.max(0, speed - lost);
   }
 
   // Distance is speed added up; score grows faster with a long combo.
-  const movedMeters = (speed * deltaMs) / 1000;
+  const movedMeters = (speed * elapsed) / 1000;
   distance += movedMeters;
   score += movedMeters * comboMultiplier(combo, config);
 
@@ -126,6 +132,8 @@ export function tick(state: GameState, deltaMs: number): GameState {
   const here = segmentAt(distance, config.course);
   if (here.index !== segmentIndex) {
     segmentIndex = here.index;
+    // A step can overwrite lastEvent, so the banner remembers its own time.
+    segmentChangedAtMs = time;
     lastEvent = { kind: 'segment', atMs: time };
   }
 
@@ -155,6 +163,7 @@ export function tick(state: GameState, deltaMs: number): GameState {
     nextDueMs,
     expectedFoot,
     segmentIndex,
+    segmentChangedAtMs,
     stumbleUntilMs,
     lastEvent,
   };

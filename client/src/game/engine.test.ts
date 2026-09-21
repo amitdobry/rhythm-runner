@@ -30,6 +30,7 @@ describe('createGame', () => {
     expect(game.phase).toBe('ready');
     expect(game.speed).toBe(DEFAULT_CONFIG.speed.start);
     expect(game.energy).toBe(DEFAULT_CONFIG.energy.start);
+    expect(game.segmentChangedAtMs).toBeNull();
   });
 
   it('ignores a step before the run has started', () => {
@@ -147,6 +148,18 @@ describe('tick', () => {
     expect(state.score).toBeCloseTo(10); // combo 0, so the multiplier is 1
   });
 
+  it('only moves the runner by the time that is really left in the last tick', () => {
+    const config: GameConfig = {
+      ...DEFAULT_CONFIG,
+      speed: { ...DEFAULT_CONFIG.speed, start: 10, decayPerSecond: 0 },
+    };
+    const nearTheEnd: GameState = { ...startRun(createGame(config)), timeMs: 59995 };
+    const after = tick(nearTheEnd, 100); // only 5 ms of the run are left
+    expect(after.timeMs).toBe(60000);
+    expect(after.phase).toBe('finished');
+    expect(after.distance).toBeCloseTo(10 * 0.005);
+  });
+
   it('stops the run after the last second', () => {
     const finished = advanceTo(startRun(createGame()), 60000);
     expect(finished.phase).toBe('finished');
@@ -177,6 +190,24 @@ describe('the pace follows the road', () => {
 
     const after = step(crossed, 'left');
     expect(after.nextDueMs).toBeCloseTo(600 + 900);
+  });
+
+  it('remembers when the crossing happened even after a step', () => {
+    const config = withCourse(
+      [
+        { terrain: 'flat', weather: 'clear', lengthMeters: 10 },
+        { terrain: 'water', weather: 'clear', lengthMeters: 100 },
+      ],
+      { speed: { ...DEFAULT_CONFIG.speed, start: 20, decayPerSecond: 0 } }
+    );
+    const crossed = advanceTo(startRun(createGame(config)), 600);
+    const crossedAtMs = crossed.segmentChangedAtMs;
+    expect(crossedAtMs).not.toBeNull();
+    expect(crossedAtMs).toBeLessThan(600);
+
+    const after = step(crossed, 'left');
+    expect(after.lastEvent?.kind).toBe('perfect'); // the step overwrote lastEvent
+    expect(after.segmentChangedAtMs).toBe(crossedAtMs); // the banner still knows
   });
 });
 
