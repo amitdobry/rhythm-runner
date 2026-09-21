@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { Foot, GameConfig } from './config';
-import { createGame, startRun, step, tick, type GameState } from './engine';
+import { createGame, startRun, step, tick, type GameState, type Phase } from './engine';
 import { createMetronome, type Metronome } from './audio';
 import { render } from './render';
 
@@ -13,7 +13,8 @@ const MAX_CATCH_UP_MS = 250; // a hidden tab must not fast-forward the run
 const COUNTDOWN_MS = 3000;
 
 export interface GameLoop {
-  state: GameState;
+  phase: Phase;
+  finished: GameState | null; // the last moment of a finished run, for the results
   start(): void;
   restart(): void;
   pressFoot(foot: Foot): void;
@@ -21,11 +22,16 @@ export interface GameLoop {
 }
 
 export function useGameLoop(canvasRef: RefObject<HTMLCanvasElement>, config: GameConfig): GameLoop {
-  const [state, setState] = useState<GameState>(() => createGame(config));
+  // React only hears about the run when something changes that the page draws
+  // in HTML: the phase and the countdown. The canvas reads the live state from
+  // the ref sixty times a second without re-rendering anything.
+  const [phase, setPhase] = useState<Phase>('ready');
+  const [finished, setFinished] = useState<GameState | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const configRef = useRef(config);
-  const stateRef = useRef<GameState>(state);
+  const stateRef = useRef<GameState>(createGame(config));
+  const phaseRef = useRef<Phase>('ready');
   const pendingFeet = useRef<Foot[]>([]);
   const metronomeRef = useRef<Metronome | null>(null);
   const unlockedRef = useRef(false);
@@ -37,7 +43,9 @@ export function useGameLoop(canvasRef: RefObject<HTMLCanvasElement>, config: Gam
   useEffect(() => {
     configRef.current = config;
     stateRef.current = createGame(config);
-    setState(stateRef.current);
+    phaseRef.current = 'ready';
+    setPhase('ready');
+    setFinished(null);
     setCountdown(null);
     countdownEndsAtRef.current = null;
     pendingFeet.current = [];
@@ -61,7 +69,9 @@ export function useGameLoop(canvasRef: RefObject<HTMLCanvasElement>, config: Gam
       unlockedRef.current = true;
     }
     stateRef.current = createGame(configRef.current);
-    setState(stateRef.current);
+    phaseRef.current = 'ready';
+    setPhase('ready');
+    setFinished(null);
     pendingFeet.current = [];
     clickedDueRef.current = null;
     countdownEndsAtRef.current = performance.now() + COUNTDOWN_MS;
@@ -171,7 +181,14 @@ export function useGameLoop(canvasRef: RefObject<HTMLCanvasElement>, config: Gam
         guideClick();
       }
 
-      setState(stateRef.current);
+      // The only thing React needs from a frame is a change of phase.
+      const current = stateRef.current;
+      if (current.phase !== phaseRef.current) {
+        phaseRef.current = current.phase;
+        setPhase(current.phase);
+        setFinished(current.phase === 'finished' ? current : null);
+      }
+
       draw();
     };
 
@@ -212,5 +229,5 @@ export function useGameLoop(canvasRef: RefObject<HTMLCanvasElement>, config: Gam
     };
   }, [canvasRef, config, pressFoot]);
 
-  return { state, start, restart: start, pressFoot, countdown };
+  return { phase, finished, start, restart: start, pressFoot, countdown };
 }

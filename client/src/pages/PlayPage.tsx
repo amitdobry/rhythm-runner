@@ -16,7 +16,7 @@ export function PlayPage() {
   const [platform, setPlatform] = useState<Platform>(() => readOverride() ?? detectPlatform());
   const config = useMemo(() => configForPlatform(platform), [platform]);
 
-  const { state, start, restart, pressFoot, countdown } = useGameLoop(canvasRef, config);
+  const { phase, finished, start, restart, pressFoot, countdown } = useGameLoop(canvasRef, config);
 
   // The run is sent once, when it ends. A failure is quiet: it must never
   // stand between a child and the next run.
@@ -24,23 +24,21 @@ export function PlayPage() {
   const sentRef = useRef(false);
 
   useEffect(() => {
-    if (state.phase === 'ready') {
+    if (phase === 'ready') {
       sentRef.current = false;
       setSaved({ status: 'idle' });
       return;
     }
-    if (state.phase !== 'finished' || sentRef.current) return;
+    if (phase !== 'finished' || finished === null || sentRef.current) return;
     sentRef.current = true;
     setSaved({ status: 'saving' });
-    submitScore(summarize(state))
+    submitScore(summarize(finished))
       .then((result) => setSaved({ status: 'saved', rank: result.rank }))
       .catch(() => setSaved({ status: 'failed' }));
-    // state stops changing once the run is finished, so this runs once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.phase]);
+  }, [phase, finished]);
 
   const isMobile = platform === 'mobile';
-  const running = state.phase === 'running';
+  const running = phase === 'running';
   const showHeader = !(isMobile && running);
 
   const choosePlatform = (next: Platform) => {
@@ -66,7 +64,7 @@ export function PlayPage() {
           </div>
         )}
 
-        {state.phase === 'ready' && countdown === null && (
+        {phase === 'ready' && countdown === null && (
           <div className="overlay">
             <h2>Rhythm Runner</h2>
             <p className="overlay-lead">
@@ -94,10 +92,10 @@ export function PlayPage() {
           </div>
         )}
 
-        {state.phase === 'finished' && (
+        {phase === 'finished' && finished !== null && (
           <div className="overlay">
             <h2>Run finished</h2>
-            <ResultsTable state={state} />
+            <ResultsTable state={finished} />
             <ScoreNote saved={saved} platform={platform} />
             <div className="overlay-buttons">
               <button className="primary" onClick={restart}>
