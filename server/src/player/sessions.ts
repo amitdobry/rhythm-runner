@@ -7,7 +7,9 @@ import { COLLECTIONS } from '../database/mongo.js';
  * The browser holds only a random token, in a cookie JavaScript cannot read.
  */
 export const SESSION_COOKIE = 'rr_session';
-export const SESSION_DAYS = 7;
+// A year. A child who played in a corridor in September should still be
+// themselves in June, without typing anything again.
+export const SESSION_DAYS = 365;
 
 interface SessionDoc {
   token: string;
