@@ -46,6 +46,7 @@ export const T = Object.freeze({
   tabPc: 'מחשב',
   tabMobile: 'טלפון',
   yourBest: 'השיא שלכם: {score} · {runs} ריצות',
+  yourBestOne: 'השיא שלכם: {score} · ריצה אחת',
   noRunsYet: 'עוד אין ריצות. תהיו הראשונים!',
   scoresUnavailable: 'הטבלה לא זמינה כרגע',
   tutorialTitle: 'בואו נתרגל',

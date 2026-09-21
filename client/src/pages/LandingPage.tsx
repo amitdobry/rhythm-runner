@@ -38,7 +38,7 @@ export function LandingPage() {
         {T.playNow}
       </Link>
 
-      <TopFive platform={platform} />
+      <HighScores nickname={player?.nickname} platform={platform} />
 
       {player ? (
         <section className="panel who">
@@ -60,8 +60,6 @@ export function LandingPage() {
           {T.playedBefore}
         </button>
       )}
-
-      <HighScores nickname={player?.nickname} platform={platform} />
 
       <button
         className="quiet-link"
@@ -86,37 +84,6 @@ function usePlatform(): Platform {
   return platform;
 }
 
-/** The five names at the top, so a visitor sees people before typing anything. */
-function TopFive({ platform }: { platform: Platform }) {
-  const [rows, setRows] = useState<ScoreRow[] | null>(null);
-
-  useEffect(() => {
-    let current = true;
-    fetchTopScores(platform, 5)
-      .then((found) => current && setRows(found))
-      .catch(() => current && setRows(null));
-    return () => {
-      current = false;
-    };
-  }, [platform]);
-
-  if (rows === null || rows.length === 0) return null;
-
-  return (
-    <table className="score-table top-five">
-      <tbody>
-        {rows.map((row, index) => (
-          <tr key={`${row.nickname}-${row.createdAt}`}>
-            <td className="num">{index + 1}</td>
-            <td title={row.nickname}>{shortName(row.nickname)}</td>
-            <td className="num">{formatNumber(row.score)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
 function MyBestLine({ platform }: { platform: Platform }) {
   const [mine, setMine] = useState<MyScores | null>(null);
 
@@ -127,12 +94,16 @@ function MyBestLine({ platform }: { platform: Platform }) {
   }, []);
 
   if (!mine) return null;
+  return <p className="muted">{bestLine(mine, platform)}</p>;
+}
+
+/** "one run" is not "1 runs": Hebrew needs its own sentence for a single run. */
+export function bestLine(mine: MyScores, platform: Platform): string {
   const best = mine.best[platform];
-  return (
-    <p className="muted">
-      {fill(T.yourBest, { score: best ? formatNumber(best.score) : '—', runs: mine.runs })}
-    </p>
-  );
+  const score = best ? formatNumber(best.score) : '—';
+  return mine.runs === 1
+    ? fill(T.yourBestOne, { score })
+    : fill(T.yourBest, { score, runs: formatNumber(mine.runs) });
 }
 
 /** The two boards, and where the player sits on the one they play. */
@@ -167,8 +138,6 @@ function HighScores({ nickname, platform }: { nickname?: string; platform: Platf
       .then(setMine)
       .catch(() => setMine(null));
   }, [nickname]);
-
-  const best = mine?.best[tab] ?? null;
 
   return (
     <section className="panel scores">
@@ -213,11 +182,7 @@ function HighScores({ nickname, platform }: { nickname?: string; platform: Platf
         </table>
       )}
 
-      {mine && (
-        <p className="muted">
-          {fill(T.yourBest, { score: best ? formatNumber(best.score) : '—', runs: mine.runs })}
-        </p>
-      )}
+      {mine && <p className="muted">{bestLine(mine, tab)}</p>}
     </section>
   );
 }
