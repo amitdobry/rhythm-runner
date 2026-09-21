@@ -7,7 +7,7 @@ import { COLLECTIONS } from '../database/mongo.js';
  *
  * There is no third party and no tracking cookie. An event carries a random
  * session id made in the browser, the name of the thing that happened, the
- * device kind and the leaflet batch. It NEVER carries a nickname or any other
+ * device kind and the leaflet marker. It NEVER carries a nickname or any other
  * personal detail, and the collection throws its own rows away after 180 days.
  */
 
@@ -38,7 +38,7 @@ export interface EventInput {
   sid: string;
   name: EventName;
   platform: EventPlatform;
-  batch: string; // '' or '1'..'6'
+  ref: string; // '' or a leaflet marker such as LEAF5 or B3
   data?: EventData;
 }
 
@@ -48,7 +48,7 @@ interface EventDoc extends EventInput {
 }
 
 const SID_PATTERN = /^[a-z0-9]{8,40}$/;
-const BATCH_PATTERN = /^[1-6]$/;
+const REF_PATTERN = /^[A-Z0-9]{1,12}$/;
 const MAX_DATA_KEYS = 8;
 const MAX_DATA_STRING = 40;
 const MAX_DATA_BYTES = 512;
@@ -93,10 +93,10 @@ export function validateEvent(body: unknown): EventInput | null {
   const platform = raw.platform;
   if (platform !== 'pc' && platform !== 'mobile' && platform !== 'unknown') return null;
 
-  const batch = raw.batch;
-  if (typeof batch !== 'string' || (batch !== '' && !BATCH_PATTERN.test(batch))) return null;
+  const ref = raw.ref;
+  if (typeof ref !== 'string' || (ref !== '' && !REF_PATTERN.test(ref))) return null;
 
-  const event: EventInput = { sid, name: raw.name, platform, batch };
+  const event: EventInput = { sid, name: raw.name, platform, ref };
 
   if (raw.data !== undefined) {
     const data = validData(raw.data);
@@ -116,14 +116,15 @@ export async function recordEvent(db: Db, event: EventInput): Promise<void> {
 export interface EventSummary {
   days: number;
   byName: Record<string, { events: number; sessions: number }>;
-  byBatch: Record<
+  // Visitors with no leaflet marker are reported under the key 'direct'.
+  byRef: Record<
     string,
     { opened: number; played: number; completed: number; workshopClicked: number }
   >;
 }
 
 /** Which event the funnel column is counted from. */
-const FUNNEL: Record<string, keyof EventSummary['byBatch'][string]> = {
+const FUNNEL: Record<string, keyof EventSummary['byRef'][string]> = {
   landing_viewed: 'opened',
   run_started: 'played',
   run_completed: 'completed',
@@ -146,29 +147,30 @@ export async function summarize(db: Db, days: number): Promise<EventSummary> {
   const byName: EventSummary['byName'] = {};
   for (const row of named) byName[row._id] = { events: row.events, sessions: row.sessions };
 
-  // The funnel per leaflet batch, each step counted in people, not events.
+  // The funnel per leaflet, each step counted in people, not events.
   const funnelled = await events
-    .aggregate<{ _id: { batch: string; name: string }; sessions: number }>([
+    .aggregate<{ _id: { ref: string; name: string }; sessions: number }>([
       { $match: { at: { $gte: since }, name: { $in: Object.keys(FUNNEL) } } },
-      { $group: { _id: { batch: '$batch', name: '$name', sid: '$sid' } } },
+      { $group: { _id: { ref: '$ref', name: '$name', sid: '$sid' } } },
       {
         $group: {
-          _id: { batch: '$_id.batch', name: '$_id.name' },
+          _id: { ref: '$_id.ref', name: '$_id.name' },
           sessions: { $sum: 1 },
         },
       },
     ])
     .toArray();
 
-  const byBatch: EventSummary['byBatch'] = {};
+  const byRef: EventSummary['byRef'] = {};
   for (const row of funnelled) {
-    const batch = row._id.batch;
-    if (!byBatch[batch]) {
-      byBatch[batch] = { opened: 0, played: 0, completed: 0, workshopClicked: 0 };
+    // Visitors who came on their own are grouped under one readable key.
+    const ref = row._id.ref || 'direct';
+    if (!byRef[ref]) {
+      byRef[ref] = { opened: 0, played: 0, completed: 0, workshopClicked: 0 };
     }
     const column = FUNNEL[row._id.name];
-    if (column) byBatch[batch][column] = row.sessions;
+    if (column) byRef[ref][column] = row.sessions;
   }
 
-  return { days, byName, byBatch };
+  return { days, byName, byRef };
 }

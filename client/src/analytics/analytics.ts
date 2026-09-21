@@ -28,7 +28,7 @@ export type EventName =
   | 'behind_opened';
 
 const SID_KEY = 'rr_sid';
-const BATCH_KEY = 'rr_batch';
+const REF_KEY = 'rr_ref';
 const SID_LENGTH = 20;
 const SID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
@@ -65,22 +65,45 @@ export function sessionId(): string {
   return sid;
 }
 
+/** What a remembered marker may look like: LEAF5, B3, and nothing else. */
+const STORED_MARKER = /^[A-Z0-9]{1,12}$/;
+
 /**
- * Which leaflet this visitor came from: ?b=1..6, remembered for the rest of
- * the visit. Anything else counts as no batch at all.
+ * The leaflet marker in a query string, by the landing page's rules, which
+ * this game copies and never invents: ?ref=CODE wins, ?b=N is the older
+ * spelling, anything else means the visitor came on their own.
  */
-export function currentBatch(): string {
+export function readMarker(search: string): string {
+  let params: URLSearchParams;
   try {
-    const fromUrl = new URLSearchParams(window.location.search).get('b');
-    if (fromUrl && /^[1-6]$/.test(fromUrl)) {
-      store(BATCH_KEY, fromUrl);
-      return fromUrl;
-    }
+    params = new URLSearchParams(search);
   } catch {
-    // a malformed query string is not worth crashing over
+    return ''; // a malformed query string is not worth crashing over
   }
-  const stored = readStored(BATCH_KEY);
-  return stored && /^[1-6]$/.test(stored) ? stored : '';
+
+  const ref = params.get('ref');
+  if (ref && /^[A-Za-z0-9]{3,12}$/.test(ref)) return ref.toUpperCase();
+
+  const b = params.get('b');
+  if (b && /^[1-6]$/.test(b)) return `B${b}`;
+
+  return '';
+}
+
+/** The marker for this visit, remembered so a later visit is still credited. */
+export function currentRef(): string {
+  let found = '';
+  try {
+    found = readMarker(window.location.search);
+  } catch {
+    found = '';
+  }
+  if (found) {
+    store(REF_KEY, found);
+    return found;
+  }
+  const stored = readStored(REF_KEY);
+  return stored && STORED_MARKER.test(stored) ? stored : '';
 }
 
 function currentPlatform(): 'pc' | 'mobile' | 'unknown' {
@@ -101,7 +124,7 @@ export function track(name: EventName, data?: Record<string, number | string | b
         sid: sessionId(),
         name,
         platform: currentPlatform(),
-        batch: currentBatch(),
+        ref: currentRef(),
         ...(data ? { data } : {}),
       }),
     }).catch(() => {});

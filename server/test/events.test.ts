@@ -32,7 +32,7 @@ const validEvent = {
   sid: 'abc123def456ghi789',
   name: 'run_completed',
   platform: 'mobile',
-  batch: '3',
+  ref: 'LEAF5',
   data: { score: 830, distance: 707, skipped: 4 },
 };
 

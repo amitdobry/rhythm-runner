@@ -58,7 +58,7 @@ async function ensureIndexes(database: Db): Promise<void> {
     .collection(COLLECTIONS.events)
     .createIndex({ at: 1 }, { expireAfterSeconds: EVENT_TTL_SECONDS });
   await database.collection(COLLECTIONS.events).createIndex({ name: 1, at: -1 });
-  await database.collection(COLLECTIONS.events).createIndex({ batch: 1, at: -1 });
+  await database.collection(COLLECTIONS.events).createIndex({ ref: 1, at: -1 });
 }
 
 /** null means "not connected". Callers must handle that case clearly. */
