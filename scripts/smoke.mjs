@@ -3,11 +3,18 @@
 //   npm run smoke
 //
 // Needs server/.env (or MONGODB_URI in the environment). With a reachable database
-// it walks the whole flow: enter -> me -> save a run -> leaderboard -> my best
+// it walks the whole flow: enter -> me -> save two runs -> leaderboard -> my best
 // -> leave -> me is 401.
-// Without one it still proves the server starts and fails clearly (503).
+//
+// With no connection string at all it points the server at an unreachable
+// address instead, so the "server up, database error, entering answers 503"
+// branch is really exercised rather than the server refusing to boot.
+//
+// It NEVER writes to the production database: it uses the throwaway database
+// rhythm_runner_smoke on the same cluster. Drop that database whenever you like.
 // Never prints the connection string.
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -15,9 +22,26 @@ const PORT = Number(process.env.SMOKE_PORT ?? 4100);
 const BASE = `http://127.0.0.1:${PORT}`;
 const serverDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'server');
 
+// A throwaway database, never the one the public leaderboard reads.
+const SMOKE_DB = process.env.SMOKE_DB_NAME ?? 'rhythm_runner_smoke';
+
+// dotenv does not overwrite variables that are already set, so the fallback
+// below is only added when there is genuinely no connection string anywhere.
+const hasUri = Boolean(process.env.MONGODB_URI) || fs.existsSync(path.join(serverDir, '.env'));
+const UNREACHABLE_URI = 'mongodb://127.0.0.1:1/';
+
+console.log(
+  `      database: ${SMOKE_DB}${hasUri ? '' : ' (no connection string; using an unreachable address)'}`
+);
+
 const child = spawn(process.execPath, ['--import', 'tsx', 'src/index.ts'], {
   cwd: serverDir,
-  env: { ...process.env, PORT: String(PORT) },
+  env: {
+    ...process.env,
+    PORT: String(PORT),
+    MONGODB_DB_NAME: SMOKE_DB,
+    ...(hasUri ? {} : { MONGODB_URI: UNREACHABLE_URI }),
+  },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let log = '';
@@ -84,26 +108,51 @@ try {
         `got ${me1.status}`
       );
 
-      // A finished run: save it, find it on the board, read it back as my best.
-      const run = {
-        score: 1,
-        distance: 1,
-        accuracy: 0,
-        bestCombo: 0,
+      // Two finished runs. The second is worse than the first: the rank must
+      // still be 1, because rank is where the PLAYER stands on the board and
+      // Smoke Test is the only player in the throwaway database.
+      const postRun = async (run) => {
+        const res = await fetch(`${BASE}/api/scores`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', cookie },
+          body: JSON.stringify(run),
+        });
+        return { status: res.status, body: res.status === 201 ? await res.json() : {} };
+      };
+
+      const good = await postRun({
+        score: 500,
+        distance: 300,
+        accuracy: 0.8,
+        bestCombo: 24,
         runSeconds: 60,
         platform: 'pc',
         course: 'level-1',
-      };
-      const posted = await fetch(`${BASE}/api/scores`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', cookie },
-        body: JSON.stringify(run),
       });
-      const savedBody = posted.status === 201 ? await posted.json() : {};
       check(
         'POST /api/scores saves the run and answers with a rank',
-        posted.status === 201 && typeof savedBody.rank === 'number',
-        `got ${posted.status}`
+        good.status === 201 && typeof good.body.rank === 'number',
+        `got ${good.status}`
+      );
+      check(
+        'the only player on the board is ranked 1',
+        good.body.rank === 1,
+        `rank ${good.body.rank}`
+      );
+
+      const worse = await postRun({
+        score: 100,
+        distance: 100,
+        accuracy: 0.4,
+        bestCombo: 5,
+        runSeconds: 60,
+        platform: 'pc',
+        course: 'level-1',
+      });
+      check(
+        'a run below your own best does not push you down the board',
+        worse.status === 201 && worse.body.rank === 1,
+        `rank ${worse.body.rank}`
       );
 
       const top = await fetch(`${BASE}/api/scores/top?platform=pc&limit=50`);
@@ -117,8 +166,8 @@ try {
       const mine = await fetch(`${BASE}/api/scores/me`, { headers: { cookie } });
       const mineBody = mine.ok ? await mine.json() : {};
       check(
-        'GET /api/scores/me shows my best PC run',
-        mine.status === 200 && mineBody.best?.pc?.nickname === 'Smoke Test' && mineBody.runs >= 1,
+        'GET /api/scores/me shows my best PC run, not my last one',
+        mine.status === 200 && mineBody.best?.pc?.score === 500 && mineBody.runs >= 2,
         `got ${mine.status}`
       );
 

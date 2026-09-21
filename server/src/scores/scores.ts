@@ -112,7 +112,11 @@ export async function saveRun(
     createdAt: new Date(),
   };
   await db.collection<ScoreDoc>(COLLECTIONS.scores).insertOne(doc);
-  const rank = await rankOf(db, summary.platform, summary.course, summary.score);
+
+  // Rank is where the player stands on the board, not where this one run
+  // stands: a run below your own best must not push you down the list.
+  const best = await bestScoreFor(db, doc.playerId, summary.platform, summary.course);
+  const rank = await rankOf(db, doc.playerId, summary.platform, summary.course, best);
   return { saved: toRow(doc), rank };
 }
 
@@ -152,14 +156,36 @@ export async function personalBest(
   };
 }
 
-/** How many players on this board have a better best score, plus one. */
-async function rankOf(db: Db, platform: Platform, course: string, score: number): Promise<number> {
+/** This player's best score on one board, or 0 if they have never run it. */
+async function bestScoreFor(
+  db: Db,
+  playerId: ObjectId,
+  platform: Platform,
+  course: string
+): Promise<number> {
+  const best = await db
+    .collection<ScoreDoc>(COLLECTIONS.scores)
+    .find({ playerId, platform, course })
+    .sort({ score: -1 })
+    .limit(1)
+    .next();
+  return best?.score ?? 0;
+}
+
+/** How many OTHER players on this board are ahead of this player, plus one. */
+async function rankOf(
+  db: Db,
+  playerId: ObjectId,
+  platform: Platform,
+  course: string,
+  playerBest: number
+): Promise<number> {
   const counted = await db
     .collection<ScoreDoc>(COLLECTIONS.scores)
     .aggregate<{ players: number }>([
-      { $match: { platform, course } },
+      { $match: { platform, course, playerId: { $ne: playerId } } },
       { $group: { _id: '$playerId', best: { $max: '$score' } } },
-      { $match: { best: { $gt: score } } },
+      { $match: { best: { $gt: playerBest } } },
       { $count: 'players' },
     ])
     .toArray();
