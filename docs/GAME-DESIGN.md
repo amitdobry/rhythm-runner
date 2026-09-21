@@ -127,8 +127,30 @@ flat/clear 60  ->  uphill 40  ->  downhill 40  ->  flat/rain 50  ->  water 30
 After **60 seconds** the run stops. You see distance, score, best combo and
 accuracy (good steps divided by all steps and skips). Your best score goes on
 the leaderboard under your nickname, and the overlay tells you where you now
-stand against everybody else. The board is public: you can read it on the
-first screen before picking a nickname at all.
+stand - **this week and of all time**. Beat your own best and the screen says
+so, with confetti.
+
+### Your name, and the code that keeps it
+
+The first time you save a score you pick a nickname and a **four-digit code**.
+The name is then yours: on any other device, that name opens only for that
+code. Five wrong tries and the name rests for a quarter of an hour, so nobody
+can sit and guess. The code is not a password and there is nothing valuable
+behind it; it is what stops one child saving a score as another. Forget it and
+Amit can clear it.
+
+A device that has entered once stays signed in for a year, so the code is
+asked for rarely.
+
+### One board, two views
+
+**One leaderboard for everyone**, phone and keyboard together. It opens on
+**this week** - Sunday to Sunday, Israel time - so somebody arriving in
+November can still reach the top; **all time** is the second view. If you are
+not in the top ten, your own row is shown underneath it with your place.
+
+The board is public: you can read it on the first screen before picking a
+nickname at all.
 
 ## What you hear
 

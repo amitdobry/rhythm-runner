@@ -28,22 +28,34 @@ Base URL: same origin as the page (`/api/...`). Production:
 
 ### `POST /api/player/enter`
 
-**Changing in M7:** the body gains `pin` (four digits). An unknown name is
-claimed with that PIN; a known name needs its PIN (`401 wrong_pin`, `423 locked`
-after five wrong tries). See `PHASE-2-BUILD.md`, M7 section 2. Also new in M7:
-`POST /api/player/reset-pin` behind the admin key, and `GET /api/scores/top`
-gains `range=week|all` with the caller's own row, while `POST /api/scores`
-answers with `rankWeek`, `rankAll`, `personalBest`, `previousBest`.
+Body: `{ "nickname": "Maya", "pin": "4821" }`. Nickname rules: 2-20 characters,
+letters in any language, digits, spaces, dashes, underscores; runs of spaces
+collapse to one. The PIN is exactly four digits. One route does both jobs: it
+claims a free name and opens a claimed one, and the answer says which happened.
 
-Body: `{ "nickname": "Maya" }`. Nickname rules: 2-20 characters, letters in any
-language, digits, spaces, dashes, underscores; runs of spaces collapse to one.
+| Case                              | Answer                                               |
+| --------------------------------- | ---------------------------------------------------- |
+| bad nickname, or PIN not 4 digits | `400 { error, code: "bad_input" }`                   |
+| name unknown                      | `200 { player, claimed: true }` and sets the cookie  |
+| name known, PIN right             | `200 { player, claimed: false }` and sets the cookie |
+| name known, PIN wrong             | `401 { error, code: "wrong_pin", attemptsLeft }`     |
+| name known, locked                | `423 { error, code: "locked", retryAfterSeconds }`   |
+| no database                       | `503`                                                |
 
-- `200 { "player": { "id": "...", "nickname": "Maya" } }` and sets the cookie
-  (7 days, httpOnly, SameSite Lax, Secure in production).
-- `400` bad nickname. `503` no database.
+The cookie lasts a year (httpOnly, SameSite Lax, Secure in production). Five
+wrong tries rest the name for fifteen minutes; the count then starts again.
+The PIN is hashed with scrypt and a per-player salt, and is never logged,
+stored in the clear, or sent back.
 
-Anyone who knows a nickname can enter as it. This is a classroom identity, not
-an account. See `PHASE-0.md`.
+The PIN is not security. It is what stops one child in a classroom saving a
+score under another child's name. See `PHASE-0.md`.
+
+### `POST /api/player/reset-pin` - admin key
+
+Body: `{ "nickname": "Maya" }`, header `x-admin-key`. Clears the PIN and the
+lock, so the next `enter` for that name claims it again with whatever PIN it
+brings. `200 { "ok": true }`. `404` when the key is missing, wrong, or
+`ADMIN_KEY` is not set - the same hiding as the events summary.
 
 ### `GET /api/player/me` - session
 
@@ -90,24 +102,43 @@ distance above `20 x runSeconds`, score above `3 x distance`, `bestCombo`
 above the most steps that fit in the run at the fastest pace, unknown
 `platform`, missing `course`.
 
-- `201 { "saved": ScoreRow, "rank": 3 }` where `rank` is the player's position
-  on the leaderboard after this save (1 = best; other players with a higher
-  best score, plus one). One board: phone and keyboard are ranked together.
+- `201 { "saved": ScoreRow, "rankWeek": 2, "rankAll": 7, "personalBest": true, "previousBest": 1480 }`.
+  Both ranks are the player's position after this save (1 = best; other players
+  with a higher best score, plus one) - one on this week's board, one on the
+  all-time board. One board per range: phone and keyboard are ranked together.
+  `personalBest` is true when the run beat the player's best before this save;
+  `previousBest` is that old best, or `null` on the very first save.
 - `400` invalid body. `503` no database.
 
-### `GET /api/scores/top?limit=10` - public (no session needed)
+### `GET /api/scores/top?range=week&limit=10` - public (no session needed)
 
-One board for everyone. `limit` default 10, max 50. A `platform` query from
-an older page is ignored, never an error.
+One board for everyone. `range` is `week` (default) or `all`; anything else is
+`400`. `limit` default 10, max 50. A `platform` query from an older page is
+ignored, never an error.
 
-`200 { "rows": ScoreRow[] }`, best score per player, highest first, across
-both kinds of device. `ScoreRow.platform` says what the run was played on;
-nothing ranks by it.
+```json
+{
+  "range": "week",
+  "weekStart": "2026-09-20",
+  "weekEnd": "2026-09-27",
+  "rows": [],
+  "me": { "rank": 14, "row": {} }
+}
+```
+
+`rows` is the best score per player, highest first, across both kinds of
+device. `weekStart` is the Sunday that starts the current week **in Israel**
+and `weekEnd` the next one; both are sent whatever the range. `me` is filled
+only when the request carries a valid session cookie **and** that player has a
+score in this range; `rank` is their position in it, 1 = best. Otherwise
+`me` is `null`. `ScoreRow.platform` says what a run was played on; nothing
+ranks by it.
 
 ### `GET /api/scores/me` - session
 
-`200 { "best": ScoreRow | null, "runs": 12 }` - the player's best run, and how
-many they have finished.
+`200 { "best": { "week": ScoreRow | null, "all": ScoreRow | null }, "runs": 12 }`
+
+- the player's best run this week and ever, and how many they have finished.
 
 ## Events
 
