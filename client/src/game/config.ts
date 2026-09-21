@@ -13,7 +13,7 @@ export type Weather = 'clear' | 'rain' | 'wind';
 export interface TerrainRule {
   paceFactor: number; // multiplies the base step interval: > 1 = slower steps
   energyPerStep: number; // energy every step costs on this ground
-  label: string; // shown when the segment starts, e.g. "Uphill! Slow, strong steps"
+  label: string; // shown when the segment starts, e.g. "עלייה! צעדים איטיים וחזקים"
 }
 
 export interface WeatherRule {
@@ -63,16 +63,16 @@ export interface GameConfig {
 }
 
 export const TERRAIN: Record<Terrain, TerrainRule> = {
-  flat: { paceFactor: 1.0, energyPerStep: 0, label: 'Flat road. Steady!' },
-  uphill: { paceFactor: 1.3, energyPerStep: 1, label: 'Uphill! Slow, strong steps' },
-  downhill: { paceFactor: 0.8, energyPerStep: 0, label: 'Downhill! Quick feet' },
-  water: { paceFactor: 1.5, energyPerStep: 2, label: 'Water! Big slow steps' },
+  flat: { paceFactor: 1.0, energyPerStep: 0, label: 'כביש ישר. קצב קבוע!' },
+  uphill: { paceFactor: 1.3, energyPerStep: 1, label: 'עלייה! צעדים איטיים וחזקים' },
+  downhill: { paceFactor: 0.8, energyPerStep: 0, label: 'ירידה! רגליים מהירות' },
+  water: { paceFactor: 1.5, energyPerStep: 2, label: 'מים! צעדים גדולים ואיטיים' },
 };
 
 export const WEATHER: Record<Weather, WeatherRule> = {
   clear: { paceFactor: 1.0, decayFactor: 1.0, energyPerStep: 0, label: '' },
-  rain: { paceFactor: 1.15, decayFactor: 1.0, energyPerStep: 1, label: 'Rain. Careful steps' },
-  wind: { paceFactor: 1.1, decayFactor: 1.5, energyPerStep: 0, label: 'Headwind. Keep pushing' },
+  rain: { paceFactor: 1.15, decayFactor: 1.0, energyPerStep: 1, label: 'גשם. צעדים זהירים' },
+  wind: { paceFactor: 1.1, decayFactor: 1.5, energyPerStep: 0, label: 'רוח נגדית. ממשיכים לדחוף' },
 };
 
 /** Level 1. About 410 metres; a good run loops it once. */

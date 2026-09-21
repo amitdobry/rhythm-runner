@@ -8,6 +8,7 @@ import { currentTargetIntervalMs, type GameState } from './engine';
 import { segmentAt, upcomingSegments, type SegmentPosition } from './course';
 import { oppositeFoot } from './pace';
 import type { Segment, Weather } from './config';
+import { T } from '../text/he';
 
 export interface RenderOptions {
   width: number;
@@ -87,7 +88,7 @@ const DASH_LENGTH = 26;
 const DASH_PERIOD = 60;
 const FLASH_MS = 150;
 const BANNER_MS = 1500;
-const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const FONT = 'Heebo, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 /** One stretch of road, already turned into pixels. */
 interface RoadBand {
@@ -110,6 +111,8 @@ export function render(
 
   ctx.save();
   ctx.clearRect(0, 0, width, height);
+  // Words are Hebrew; numbers are set back to ltr where they are drawn.
+  ctx.direction = 'rtl';
 
   drawSky(ctx, width, height, here.segment.weather);
   drawSkyline(ctx, width, height, roadOffsetPx);
@@ -496,7 +499,7 @@ function drawFootprints(
     ctx.fillStyle = FLASH_BAD;
     ctx.font = `bold ${16 * scale}px ${FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillText('other foot!', x, y + 34 * scale);
+    ctx.fillText(T.otherFoot, x, y + 34 * scale);
   }
 }
 
@@ -591,7 +594,13 @@ function drawHud(
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = HUD_TEXT;
   ctx.font = `bold ${24 * scale}px ${FONT}`;
-  ctx.fillText(`${secondsLeft}s`, pad, pad + 20 * scale);
+  ctx.direction = 'ltr';
+  ctx.fillText(`${secondsLeft}`, pad, pad + 20 * scale);
+  ctx.direction = 'rtl';
+  ctx.fillStyle = HUD_MUTED;
+  ctx.font = `${11 * scale}px ${FONT}`;
+  ctx.fillText(T.time, pad, pad + 34 * scale);
+  ctx.fillStyle = HUD_TEXT;
 
   // speed and energy bars
   const barX = pad + 58 * scale;
@@ -618,20 +627,22 @@ function drawHud(
 
   ctx.fillStyle = HUD_MUTED;
   ctx.font = `${11 * scale}px ${FONT}`;
-  ctx.fillText('speed', barX + barWidth + 8 * scale, pad + 12 * scale);
-  ctx.fillText('energy', barX + barWidth + 8 * scale, pad + 28 * scale);
+  ctx.fillText(T.speed, barX + barWidth + 8 * scale, pad + 12 * scale);
+  ctx.fillText(T.energy, barX + barWidth + 8 * scale, pad + 28 * scale);
 
   // combo and score
   const comboX = barX + barWidth + 66 * scale;
   ctx.fillStyle = HUD_TEXT;
   ctx.font = `bold ${18 * scale}px ${FONT}`;
-  ctx.fillText(`${state.combo} x${multiplierOf(state)}`, comboX, pad + 14 * scale);
+  ctx.direction = 'ltr';
+  ctx.fillText(`${state.combo} ×${multiplierOf(state)}`, comboX, pad + 14 * scale);
   ctx.font = `${16 * scale}px ${FONT}`;
   ctx.fillText(`${Math.round(state.score)}`, comboX, pad + 34 * scale);
+  ctx.direction = 'rtl';
   ctx.fillStyle = HUD_MUTED;
   ctx.font = `${11 * scale}px ${FONT}`;
-  ctx.fillText('combo', comboX + 74 * scale, pad + 14 * scale);
-  ctx.fillText('score', comboX + 74 * scale, pad + 34 * scale);
+  ctx.fillText(T.combo, comboX + 74 * scale, pad + 14 * scale);
+  ctx.fillText(T.score, comboX + 74 * scale, pad + 34 * scale);
 
   drawPaceMeter(ctx, state, width, scale, panelHeight);
 }
@@ -680,9 +691,9 @@ function drawPaceMeter(
   ctx.fillStyle = HUD_MUTED;
   ctx.font = `${10 * scale}px ${FONT}`;
   ctx.textAlign = 'left';
-  ctx.fillText('too fast', x, y + 20 * scale);
+  ctx.fillText(T.tooFast, x, y + 20 * scale);
   ctx.textAlign = 'right';
-  ctx.fillText('too slow', x + meterWidth, y + 20 * scale);
+  ctx.fillText(T.tooSlow, x + meterWidth, y + 20 * scale);
   ctx.textAlign = 'left';
 }
 
