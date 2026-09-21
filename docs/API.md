@@ -98,6 +98,28 @@ mobile are separate boards because the timing windows differ.
 
 `200 { "best": { "pc": ScoreRow | null, "mobile": ScoreRow | null }, "runs": 12 }`.
 
+## Events (M6, planned)
+
+Anonymous funnel analytics. No cookies, no personal data, never the nickname.
+
+### `POST /api/events` - public
+
+Body: `{ sid, name, platform, batch, data? }`. `sid` is a random per-browser
+id (8-40 chars, `[a-z0-9]`); `name` one of the whitelisted event names;
+`platform` `pc`, `mobile` or `unknown`; `batch` `''` or `1`-`6` (the
+leaflet batch, same scheme as the landing page); `data` an optional small
+object of numbers, booleans or short strings (at most 8 keys, 512 bytes).
+
+- `204` when valid, even if the database is down (analytics never fails the client).
+- `400` when invalid.
+
+### `GET /api/events/summary?days=7` - admin key
+
+Header `x-admin-key` must equal the `ADMIN_KEY` environment variable.
+
+- `200 { days, byName: { [name]: { events, sessions } }, byBatch: { [batch]: { opened, played, completed, workshopClicked } } }`
+- `404` when the key is missing, wrong, or `ADMIN_KEY` is not set. `503` without a database.
+
 ## Anything else under `/api`
 
 `404 { "error": "No such API route: GET /api/whatever" }`.

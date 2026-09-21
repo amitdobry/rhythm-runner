@@ -2,16 +2,19 @@
 
 A small competitive running game, built with AI, that serves as the public
 demo for a children's AI coding workshop. The game is the advert, so fun and
-polish matter more than teaching value.
+polish matter more than teaching value. The audience is Israeli children and
+parents: from Phase 2 the whole app is in Hebrew, right-to-left.
 React + Vite client, Express 5 + MongoDB server, hosted on Vercel.
 Production: <https://rhythm-runner-eight.vercel.app> (deploys on every push to `main`).
 
 ## Read first
 
-- `docs/PHASE-1.md` - what Phase 1 delivers and why (the plan).
-- `docs/PHASE-1-BUILD.md` - the step-by-step build spec: files, signatures,
-  rules, tests, definition of done per milestone. **Follow it in order.**
-- `docs/PHASE-0.md` - what already exists and the decisions behind it.
+- `docs/README.md` - the index and the status table: which milestone is next.
+- `docs/PHASE-2.md` and `docs/PHASE-2-BUILD.md` - the current phase (Hebrew,
+  play-first, tutorial, workshop reveal, analytics). **Follow the build spec in order.**
+- `docs/PHASE-1.md`, `docs/PHASE-1-BUILD.md` - what was built in Phase 1 and the
+  ground rules that still apply.
+- `docs/GAME-DESIGN.md` - the rules of the game. `docs/PHASE-0.md` - the foundation.
 
 ## Commands
 
