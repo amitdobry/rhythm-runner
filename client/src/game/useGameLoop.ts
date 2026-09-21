@@ -97,6 +97,7 @@ export function useGameLoop(
       metronomeRef.current?.unlock();
       unlockedRef.current = true;
     }
+    metronomeRef.current?.cue('start'); // "ready?" while the countdown runs
     stateRef.current = createGame(configRef.current);
     phaseRef.current = 'ready';
     setPhase('ready');
@@ -216,6 +217,8 @@ export function useGameLoop(
         phaseRef.current = current.phase;
         setPhase(current.phase);
         setFinished(current.phase === 'finished' ? current : null);
+        // The loop plays only while the runner is running.
+        metronome.music(current.phase === 'running');
       }
 
       draw();
@@ -250,6 +253,7 @@ export function useGameLoop(
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointerdown', onPointerDown);
+      metronome.music(false);
       metronome.dispose();
       metronomeRef.current = null;
       unlockedRef.current = false;
