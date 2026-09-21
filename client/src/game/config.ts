@@ -60,6 +60,12 @@ export interface GameConfig {
   // Sorted by fromCombo ascending. The multiplier of the last entry whose
   // fromCombo <= combo applies.
   comboMultipliers: { fromCombo: number; multiplier: number }[];
+  turbo: {
+    comboEvery: number; // a turbo starts each time the combo reaches a multiple of this
+    seconds: number; // how long it lasts
+    speedBoost: number; // added to speed the moment it starts
+    scoreMultiplier: number; // score grows this many times faster while it lasts
+  };
 }
 
 export const TERRAIN: Record<Terrain, TerrainRule> = {
@@ -122,6 +128,13 @@ export const PC_CONFIG: GameConfig = {
     { fromCombo: 10, multiplier: 2 },
     { fromCombo: 20, multiplier: 3 },
   ],
+  // Twenty steps in a row and the runner gets three seconds of flight.
+  turbo: {
+    comboEvery: 20,
+    seconds: 3,
+    speedBoost: 3,
+    scoreMultiplier: 2,
+  },
 };
 
 /** Thumbs on a phone: touch arrives later and less precisely, so the windows are wider. */

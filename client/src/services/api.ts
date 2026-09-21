@@ -86,6 +86,7 @@ export interface RunSummary {
   runSeconds: number;
   platform: Platform;
   course: string;
+  turbos: number;
 }
 
 /** One line on a leaderboard. */

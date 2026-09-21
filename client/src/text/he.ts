@@ -80,6 +80,9 @@ export const T = Object.freeze({
   resetsSunday: 'הטבלה מתאפסת ביום ראשון',
   yourRow: 'המקום שלכם',
 
+  turbo: 'טורבו!',
+  turbosLabel: 'טורבו',
+
   newBest: 'שיא חדש!',
   firstBest: 'השיא הראשון שלכם!',
   ranks: 'מקום {week} השבוע · מקום {all} בכל הזמנים',

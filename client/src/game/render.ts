@@ -91,7 +91,8 @@ export function render(
   drawProps(ctx, width, height, roadOffsetPx);
 
   const bands = buildRoad(state, width, height);
-  drawRoad(ctx, bands, width, height, roadOffsetPx);
+  const flying = state.turboUntilMs !== null && state.timeMs < state.turboUntilMs;
+  drawRoad(ctx, bands, width, height, roadOffsetPx, flying);
   drawFish(ctx, bands, height, roadOffsetPx);
   drawWeather(ctx, width, height, look, roadOffsetPx);
   drawLeaves(ctx, width, height, roadOffsetPx, look);
@@ -109,7 +110,7 @@ export function render(
 
   drawVignette(ctx, width, height, answer);
   drawBanner(ctx, state, width, height, scale);
-  drawHud(ctx, state, width, scale, answer);
+  drawHud(ctx, state, width, scale, answer, flying);
 
   ctx.restore();
 }

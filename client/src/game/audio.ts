@@ -43,7 +43,7 @@ export function rememberMuted(muted: boolean): void {
 }
 
 /** One-off moments that bracket a run, rather than answering a step. */
-export type CueName = 'start' | 'finish';
+export type CueName = 'start' | 'finish' | 'turbo';
 
 /** Recordings live in client/public/sounds. */
 const SOUND_URL: Record<string, string> = {
@@ -54,6 +54,7 @@ const SOUND_URL: Record<string, string> = {
   stumble: '/sounds/stumble.mp3',
   finish: '/sounds/finish.mp3',
   sad: '/sounds/sad.mp3',
+  turbo: '/sounds/turbo.mp3',
 };
 const MUSIC_URL = '/sounds/music.mp3';
 
@@ -65,6 +66,11 @@ const TICK_VOLUME = 0.06;
 
 const TICK_HZ = 880;
 const TICK_SECONDS = 0.04;
+
+// If there is no turbo recording, the browser makes one: a rising sweep.
+const SWEEP_FROM_HZ = 440;
+const SWEEP_TO_HZ = 1320;
+const SWEEP_SECONDS = 0.3;
 
 // Three things can go wrong at almost the same moment. Only the worst of them
 // is heard; the picture on screen still shows all of it.
@@ -197,6 +203,23 @@ export function createMetronome(): Metronome {
     play(name, name === 'sad' ? EFFECT_VOLUME : EFFECT_VOLUME);
   };
 
+  /** The fallback turbo: a sweep upwards, made by the browser itself. */
+  const playSweep = () => {
+    if (muted || !context || context.state !== 'running') return;
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(SWEEP_FROM_HZ, now);
+    oscillator.frequency.exponentialRampToValueAtTime(SWEEP_TO_HZ, now + SWEEP_SECONDS);
+    gain.gain.setValueAtTime(TICK_VOLUME * 3, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + SWEEP_SECONDS);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + SWEEP_SECONDS);
+  };
+
   /** The pace tick, made by the browser: rise fast, fall away. */
   const playTick = () => {
     if (muted || !context || context.state !== 'running') return;
@@ -235,6 +258,15 @@ export function createMetronome(): Metronome {
     },
 
     cue(name) {
+      if (name === 'turbo') {
+        // Use Amit's recording if it arrived; otherwise make the sound here.
+        void (async () => {
+          const recorded = await buffer('turbo');
+          if (recorded) play('turbo', EFFECT_VOLUME);
+          else playSweep();
+        })();
+        return;
+      }
       play(name, EFFECT_VOLUME, name === 'start' ? START_CUE_MAX_S : undefined);
     },
 

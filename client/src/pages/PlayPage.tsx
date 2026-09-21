@@ -350,6 +350,12 @@ function Results({ summary }: { summary: RunSummary }) {
         <dt>{T.accuracy}</dt>
         <dd className="num">{Math.round(summary.accuracy * 100)}%</dd>
       </div>
+      {summary.turbos > 0 && (
+        <div>
+          <dt>{T.turbosLabel}</dt>
+          <dd className="num">{formatNumber(summary.turbos)}</dd>
+        </div>
+      )}
       <div>
         <dt>{T.device}</dt>
         <dd>{summary.platform === 'pc' ? T.playedOnPc : T.playedOnMobile}</dd>

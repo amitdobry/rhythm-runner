@@ -39,6 +39,7 @@ export interface RunSummary {
   runSeconds: number;
   platform: Platform;
   course: string;
+  turbos?: number; // how many turbos the run earned; older pages do not send it
 }
 
 export interface ScoreRow {
@@ -64,6 +65,7 @@ interface ScoreDoc {
   runSeconds: number;
   platform: Platform;
   course: string;
+  turbos?: number;
   createdAt: Date;
 }
 
@@ -108,7 +110,22 @@ export function validateRun(body: unknown): RunSummary | null {
   if (score > distance * MAX_MULTIPLIER) return null;
   if (bestCombo > (runSeconds * 1000) / MIN_STEP_INTERVAL_MS) return null;
 
-  return { score, distance, accuracy, bestCombo, runSeconds, platform, course };
+  // Optional, and only believed when it is a sensible whole number.
+  const turbos = raw.turbos;
+  if (turbos !== undefined) {
+    if (typeof turbos !== 'number' || !Number.isInteger(turbos) || turbos < 0) return null;
+  }
+
+  return {
+    score,
+    distance,
+    accuracy,
+    bestCombo,
+    runSeconds,
+    platform,
+    course,
+    ...(turbos === undefined ? {} : { turbos }),
+  };
 }
 
 export interface SaveResult {

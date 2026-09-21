@@ -11,7 +11,15 @@ import { accuracy, comboMultiplier } from './scoring';
 export type Phase = 'ready' | 'running' | 'finished';
 
 export type GameEvent =
-  'perfect' | 'good' | 'tooFast' | 'tooSlow' | 'wrongFoot' | 'skipped' | 'stumble' | 'segment';
+  | 'perfect'
+  | 'good'
+  | 'tooFast'
+  | 'tooSlow'
+  | 'wrongFoot'
+  | 'skipped'
+  | 'stumble'
+  | 'turbo'
+  | 'segment';
 
 export interface GameState {
   config: GameConfig;
@@ -30,6 +38,8 @@ export interface GameState {
   segmentIndex: number; // current segment, so a change can be announced
   segmentChangedAtMs: number | null; // when the runner last crossed into a new segment
   stumbleUntilMs: number | null; // null = not stumbling
+  turboUntilMs: number | null; // null = not in turbo
+  turboCount: number; // how many turbos this run has earned
   lastEvent: { kind: GameEvent; atMs: number } | null; // for the renderer to flash
 }
 
@@ -42,6 +52,7 @@ export interface RunSummary {
   runSeconds: number;
   platform: Platform;
   course: string; // 'level-1'
+  turbos: number;
 }
 
 /** A game that has not started yet. */
@@ -63,6 +74,8 @@ export function createGame(config: GameConfig = DEFAULT_CONFIG): GameState {
     segmentIndex: 0,
     segmentChangedAtMs: null,
     stumbleUntilMs: null,
+    turboUntilMs: null,
+    turboCount: 0,
     lastEvent: null,
   };
 }
@@ -105,6 +118,7 @@ export function tick(state: GameState, deltaMs: number): GameState {
   let segmentIndex = state.segmentIndex;
   let segmentChangedAtMs = state.segmentChangedAtMs;
   let stumbleUntilMs = state.stumbleUntilMs;
+  let turboUntilMs = state.turboUntilMs;
   let lastEvent = state.lastEvent;
 
   // Getting up after a stumble: fresh energy and a fresh due time.
@@ -114,9 +128,16 @@ export function tick(state: GameState, deltaMs: number): GameState {
     nextDueMs = time + intervalAtDistance(distance, config);
   }
 
-  // Speed drains away on its own. A headwind drains it faster.
+  // Turbo runs out on its own.
+  if (turboUntilMs !== null && time >= turboUntilMs) turboUntilMs = null;
+  const inTurbo = turboUntilMs !== null;
+
+  // Speed drains away on its own. A headwind drains it faster - but not while
+  // the runner is flying.
   if (stumbleUntilMs !== null) {
     speed = config.speed.stumbleSpeed;
+  } else if (inTurbo) {
+    // no decay: this is the reward
   } else {
     const weather = config.weather[segmentAt(state.distance, config.course).segment.weather];
     const lost = (config.speed.decayPerSecond * weather.decayFactor * elapsed) / 1000;
@@ -126,7 +147,8 @@ export function tick(state: GameState, deltaMs: number): GameState {
   // Distance is speed added up; score grows faster with a long combo.
   const movedMeters = (speed * elapsed) / 1000;
   distance += movedMeters;
-  score += movedMeters * comboMultiplier(combo, config);
+  const turboFactor = inTurbo ? config.turbo.scoreMultiplier : 1;
+  score += movedMeters * comboMultiplier(combo, config) * turboFactor;
 
   // Crossing into a new stretch of road is announced.
   const here = segmentAt(distance, config.course);
@@ -165,6 +187,7 @@ export function tick(state: GameState, deltaMs: number): GameState {
     segmentIndex,
     segmentChangedAtMs,
     stumbleUntilMs,
+    turboUntilMs,
     lastEvent,
   };
 }
@@ -215,6 +238,17 @@ export function step(state: GameState, foot: Foot): GameState {
   const bestCombo = Math.max(state.bestCombo, combo);
   let lastEvent: GameState['lastEvent'] = { kind: eventKind, atMs: state.timeMs };
 
+  // Every twenty steps in a row, the runner takes off.
+  let turboUntilMs = state.turboUntilMs;
+  let turboCount = state.turboCount;
+  const earnsTurbo = result !== 'miss' && combo > 0 && combo % config.turbo.comboEvery === 0;
+  if (earnsTurbo) {
+    speed = clamp(speed + config.turbo.speedBoost, 0, config.speed.max);
+    turboUntilMs = state.timeMs + config.turbo.seconds * 1000;
+    turboCount += 1;
+    lastEvent = { kind: 'turbo', atMs: state.timeMs };
+  }
+
   // The next step is due one pace interval after this one, on the other foot.
   const interval = currentTargetIntervalMs(state);
   const nextDueMs = state.timeMs + interval;
@@ -240,6 +274,8 @@ export function step(state: GameState, foot: Foot): GameState {
     expectedFoot,
     lastOffsetMs: offset,
     stumbleUntilMs,
+    turboUntilMs,
+    turboCount,
     lastEvent,
   };
 }
@@ -255,6 +291,7 @@ export function summarize(state: GameState): RunSummary {
     runSeconds: state.config.runSeconds,
     platform: state.config.platform,
     course: 'level-1',
+    turbos: state.turboCount,
   };
 }
 

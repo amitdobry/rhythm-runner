@@ -228,7 +228,8 @@ export function drawRoad(
   bands: RoadBand[],
   width: number,
   height: number,
-  roadOffsetPx: number
+  roadOffsetPx: number,
+  stretchedDashes = false
 ): void {
   const thickness = height * ROAD_THICKNESS_FRACTION;
 
@@ -266,7 +267,7 @@ export function drawRoad(
     ctx.stroke();
   }
 
-  drawLaneDashes(ctx, bands, width, height, roadOffsetPx);
+  drawLaneDashes(ctx, bands, width, height, roadOffsetPx, stretchedDashes);
 }
 
 export function drawRipples(
@@ -295,15 +296,18 @@ export function drawLaneDashes(
   bands: RoadBand[],
   width: number,
   height: number,
-  roadOffsetPx: number
+  roadOffsetPx: number,
+  stretched = false
 ): void {
   const thickness = height * ROAD_THICKNESS_FRACTION;
   const offset = roadOffsetPx % DASH_PERIOD;
+  // In turbo the dashes smear into long streaks, the way they do from a car.
+  const length = stretched ? DASH_LENGTH * 2 : DASH_LENGTH;
 
   ctx.fillStyle = LANE_DASH;
   for (let x = -offset; x < width; x += DASH_PERIOD) {
     const y = roadYAt(bands, x, height * ROAD_Y_FRACTION);
-    ctx.fillRect(x, y + thickness * 0.55, DASH_LENGTH, 4);
+    ctx.fillRect(x, y + thickness * 0.55, length, 4);
   }
 }
 

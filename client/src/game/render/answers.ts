@@ -29,6 +29,7 @@ export const LUNGE_GOOD = 7;
 export const LEAN_BACK = 8;
 
 export const POPUP_RISE = 30;
+export const TURBO_POPUP_RISE = 40;
 
 export const POPUP_SIZE = 19;
 
@@ -65,7 +66,7 @@ export const MISS_KINDS: GameEvent[] = ['tooFast', 'tooSlow', 'wrongFoot'];
 export function lungeFor(answer: Answer | null): number {
   if (!answer) return 0;
   const amount =
-    answer.kind === 'perfect'
+    answer.kind === 'perfect' || answer.kind === 'turbo'
       ? LUNGE_PERFECT
       : answer.kind === 'good'
         ? LUNGE_GOOD
@@ -149,7 +150,11 @@ export function drawPopup(
   let colour = FLASH_BAD;
   let numeric = false;
 
-  if (answer.kind === 'perfect') {
+  if (answer.kind === 'turbo') {
+    // The biggest thing that can happen gets the biggest word.
+    text = T.turbo;
+    colour = FLASH_PERFECT;
+  } else if (answer.kind === 'perfect') {
     text = `+${speed.perfectBoost}`;
     colour = FLASH_PERFECT;
     numeric = true;
@@ -170,10 +175,12 @@ export function drawPopup(
   ctx.save();
   ctx.globalAlpha = Math.max(0, 1 - answer.through);
   ctx.fillStyle = colour;
-  ctx.font = `bold ${POPUP_SIZE * scale}px ${FONT}`;
+  const big = answer.kind === 'turbo';
+  ctx.font = `bold ${(big ? POPUP_SIZE * 1.5 : POPUP_SIZE) * scale}px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.direction = numeric ? 'ltr' : 'rtl';
-  ctx.fillText(text, x, groundY - 96 * scale - POPUP_RISE * scale * answer.eased);
+  const rise = (big ? TURBO_POPUP_RISE : POPUP_RISE) * scale * answer.eased;
+  ctx.fillText(text, x, groundY - 96 * scale - rise);
   ctx.restore();
 }
 

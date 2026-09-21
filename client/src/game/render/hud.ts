@@ -2,6 +2,7 @@ import type { GameState } from '../engine';
 import type { Segment } from '../config';
 import { T } from '../../text/he';
 import {
+  FLASH_PERFECT,
   BANNER_SHADOW,
   BANNER_TEXT,
   BAR_ENERGY,
@@ -65,7 +66,8 @@ export function drawHud(
   state: GameState,
   width: number,
   scale: number,
-  answer: Answer | null
+  answer: Answer | null,
+  flying = false
 ): void {
   const config = state.config;
   const panelHeight = 62 * scale;
@@ -136,6 +138,13 @@ export function drawHud(
   ctx.fillStyle = HUD_MUTED;
   ctx.font = `${11 * scale}px ${FONT}`;
   ctx.fillText(T.combo, comboX + 74 * scale, pad + 14 * scale);
+
+  // While flying, a small word sits above the combo.
+  if (flying) {
+    ctx.fillStyle = FLASH_PERFECT;
+    ctx.font = `bold ${12 * scale}px ${FONT}`;
+    ctx.fillText(T.turbo, comboX, pad - 1 * scale);
+  }
   ctx.fillText(T.score, comboX + 74 * scale, pad + 34 * scale);
 }
 

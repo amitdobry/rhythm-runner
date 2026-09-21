@@ -41,6 +41,8 @@ const SQUASH_SHORTER = 0.08; // any miss
 const NARROWER = 0.06;
 
 export const STREAK_COUNT = 6;
+const TURBO_STREAKS = 12;
+const TURBO_PULSE_HZ = 4;
 
 /** Lines trailing off behind a runner who just nailed it. */
 export function drawSpeedStreaks(
@@ -89,7 +91,10 @@ export function drawRunner(
   const shape = squashAndStretch(answer);
   ctx.scale(shape.wide, shape.tall);
 
-  if (answer && answer.kind === 'perfect') drawSpeedStreaks(ctx, 60 * u, scale, answer);
+  const flying = state.turboUntilMs !== null && state.timeMs < state.turboUntilMs;
+  if (answer && (answer.kind === 'perfect' || answer.kind === 'turbo')) {
+    drawSpeedStreaks(ctx, 60 * u, scale, answer, flying ? TURBO_STREAKS : STREAK_COUNT);
+  }
 
   const phase = stridePhase(state);
   const forward = state.expectedFoot;
@@ -98,7 +103,7 @@ export function drawRunner(
   drawArm(ctx, u, -Math.sin(phase), shirtColour, true);
   drawLeg(ctx, u, -Math.sin(phase), stumbling, forward === 'right');
 
-  drawBody(ctx, u, shirtColour, stumbling);
+  drawBody(ctx, u, shirtColour, stumbling, flying ? turboPulse(state.timeMs) : 0);
 
   drawArm(ctx, u, Math.sin(phase), shirtColour, false);
   drawLeg(ctx, u, Math.sin(phase), stumbling, forward === 'left');
@@ -159,11 +164,17 @@ function squashAndStretch(answer: Answer | null): { wide: number; tall: number }
   return { wide: 1, tall: 1 };
 }
 
+/** How bright the turbo outline is right now: four beats a second. */
+function turboPulse(timeMs: number): number {
+  return 0.45 + 0.55 * (0.5 + 0.5 * Math.sin((timeMs / 1000) * TURBO_PULSE_HZ * Math.PI * 2));
+}
+
 function drawBody(
   ctx: CanvasRenderingContext2D,
   u: number,
   shirtColour: string,
-  stumbling: boolean
+  stumbling: boolean,
+  glow: number
 ): void {
   // shorts
   ctx.fillStyle = stumbling ? RUNNER_STUMBLE : RUNNER_SHORTS;
@@ -181,6 +192,16 @@ function drawBody(
     5 * u
   );
   ctx.fill();
+
+  // While flying, the shirt is outlined in a pulsing white.
+  if (glow > 0) {
+    ctx.save();
+    ctx.globalAlpha = glow;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5 * u;
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // neck
   ctx.fillStyle = RUNNER_SKIN;
@@ -294,6 +315,17 @@ function drawFace(
     }
     ctx.beginPath();
     ctx.arc(0, mouthY, 2 * u, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (state.turboUntilMs !== null && state.timeMs < state.turboUntilMs) {
+    // flying: eyes narrowed into the wind, and a grin about it
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * eyeX - 2 * u, eyeY);
+      ctx.lineTo(side * eyeX + 2 * u, eyeY);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(0, mouthY - 1.5 * u, 3.6 * u, 0.1 * Math.PI, 0.9 * Math.PI);
     ctx.stroke();
   } else if (state.energy < 30) {
     // tired: wide eyes, a flat mouth and two drops of sweat

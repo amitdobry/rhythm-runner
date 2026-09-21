@@ -289,3 +289,103 @@ describe('summarize', () => {
     expect(summarize(createGame(MOBILE_CONFIG)).platform).toBe('mobile');
   });
 });
+
+describe('turbo', () => {
+  const EVERY = DEFAULT_CONFIG.turbo.comboEvery;
+
+  /** Steps perfectly, exactly on the beat, as many times as asked. */
+  function perfectSteps(times: number): GameState {
+    let state = startRun(createGame());
+    for (let i = 0; i < times; i += 1) {
+      state = stepAt(state, state.nextDueMs, state.expectedFoot);
+    }
+    return state;
+  }
+
+  it('takes off on the twentieth step in a row', () => {
+    const before = perfectSteps(EVERY - 1);
+    expect(before.turboUntilMs).toBeNull();
+
+    const speedBefore = advanceTo(before, before.nextDueMs).speed;
+    const flying = stepAt(before, before.nextDueMs, before.expectedFoot);
+
+    expect(flying.combo).toBe(EVERY);
+    expect(flying.lastEvent?.kind).toBe('turbo');
+    expect(flying.turboCount).toBe(1);
+    expect(flying.turboUntilMs).toBe(flying.timeMs + DEFAULT_CONFIG.turbo.seconds * 1000);
+    // the boost, on top of the step's own reward, up to the ceiling
+    expect(flying.speed).toBeCloseTo(
+      Math.min(
+        DEFAULT_CONFIG.speed.max,
+        speedBefore + DEFAULT_CONFIG.speed.perfectBoost + DEFAULT_CONFIG.turbo.speedBoost
+      )
+    );
+  });
+
+  it('does not take off again on the very next step', () => {
+    const flying = perfectSteps(EVERY);
+    const after = stepAt(flying, flying.nextDueMs, flying.expectedFoot);
+    expect(after.combo).toBe(EVERY + 1);
+    expect(after.lastEvent?.kind).toBe('perfect');
+    expect(after.turboCount).toBe(1);
+  });
+
+  it('takes off a second time at forty', () => {
+    const twice = perfectSteps(EVERY * 2);
+    expect(twice.combo).toBe(EVERY * 2);
+    expect(twice.turboCount).toBe(2);
+    expect(twice.lastEvent?.kind).toBe('turbo');
+  });
+
+  it('holds the speed while it lasts, and lets it drain again after', () => {
+    const flying = perfectSteps(EVERY);
+    const held = advanceTo(flying, flying.timeMs + 1000);
+    expect(held.speed).toBeCloseTo(flying.speed); // no decay at all
+
+    const ended = advanceTo(flying, (flying.turboUntilMs ?? 0) + 1000);
+    expect(ended.turboUntilMs).toBeNull();
+    expect(ended.speed).toBeLessThan(flying.speed);
+  });
+
+  it('doubles the score while it lasts', () => {
+    const flying = perfectSteps(EVERY);
+    const after = advanceTo(flying, flying.timeMs + 500);
+
+    const moved = after.distance - flying.distance;
+    const multiplier = 3; // combo 20 is already x3
+    expect(after.score - flying.score).toBeCloseTo(
+      moved * multiplier * DEFAULT_CONFIG.turbo.scoreMultiplier,
+      3
+    );
+  });
+
+  it('is not ended by a miss', () => {
+    const flying = perfectSteps(EVERY);
+    // the same foot again: a wrong foot, which is a miss
+    const missed = stepAt(
+      flying,
+      flying.timeMs + 10,
+      flying.expectedFoot === 'left' ? 'right' : 'left'
+    );
+    expect(missed.counts.miss).toBe(1);
+    expect(missed.turboUntilMs).toBe(flying.turboUntilMs);
+  });
+
+  it('is ended by a fall', () => {
+    const flying = perfectSteps(EVERY);
+    // Empty the energy bar with wrong-foot presses until the runner goes down.
+    let state = flying;
+    let dueMs = state.nextDueMs;
+    while (state.stumbleUntilMs === null && dueMs < DEFAULT_CONFIG.runSeconds * 1000) {
+      state = stepAt(state, dueMs, state.expectedFoot === 'left' ? 'right' : 'left');
+      dueMs = state.nextDueMs;
+    }
+    expect(state.stumbleUntilMs).not.toBeNull();
+    expect(state.turboUntilMs).toBeNull();
+  });
+
+  it('counts the turbos in the summary', () => {
+    expect(summarize(perfectSteps(EVERY * 2)).turbos).toBe(2);
+    expect(summarize(startRun(createGame())).turbos).toBe(0);
+  });
+});
