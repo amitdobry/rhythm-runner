@@ -17,10 +17,13 @@ export type ClickKind = 'due' | 'perfect' | 'good' | 'miss' | 'skipped' | 'stumb
 export interface Metronome {
   unlock(): void;
   click(kind: ClickKind): void;
-  cue(name: 'start'): void;
+  cue(name: CueName): void;
   music(on: boolean): void;
   dispose(): void;
 }
+
+/** One-off moments that bracket a run, rather than answering a step. */
+export type CueName = 'start' | 'finish';
 
 /** Recordings live in client/public/sounds. */
 const SOUND_URL: Record<string, string> = {
@@ -29,6 +32,7 @@ const SOUND_URL: Record<string, string> = {
   miss: '/sounds/bad.mp3',
   start: '/sounds/start.mp3',
   stumble: '/sounds/stumble.mp3',
+  finish: '/sounds/finish.mp3',
 };
 const MUSIC_URL = '/sounds/music.mp3';
 

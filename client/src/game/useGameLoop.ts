@@ -228,8 +228,10 @@ export function useGameLoop(
         phaseRef.current = current.phase;
         setPhase(current.phase);
         setFinished(current.phase === 'finished' ? current : null);
-        // The loop plays only while the runner is running.
+        // The loop plays only while the runner is running, and the end of a
+        // run gets its own sound in the quiet the music leaves behind.
         metronome.music(current.phase === 'running');
+        if (current.phase === 'finished') metronome.cue('finish');
       }
 
       draw();
