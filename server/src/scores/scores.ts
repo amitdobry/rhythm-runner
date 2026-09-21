@@ -115,17 +115,21 @@ export async function saveRun(
 
   // Rank is where the player stands on the board, not where this one run
   // stands: a run below your own best must not push you down the list.
-  const best = await bestScoreFor(db, doc.playerId, summary.platform, summary.course);
-  const rank = await rankOf(db, doc.playerId, summary.platform, summary.course, best);
+  const best = await bestScoreFor(db, doc.playerId, summary.course);
+  const rank = await rankOf(db, doc.playerId, summary.course, best);
   return { saved: toRow(doc), rank };
 }
 
-/** One row per player, best score first. PC and mobile are separate boards. */
-export async function topScores(db: Db, platform: Platform, limit: number): Promise<ScoreRow[]> {
+/**
+ * One row per player, best score first. One board for everyone: the phone
+ * layout is a layout, not a different game, so a thumb and a keyboard are
+ * ranked together. Which device it was is kept on the row for analytics.
+ */
+export async function topScores(db: Db, limit: number): Promise<ScoreRow[]> {
   const docs = await db
     .collection<ScoreDoc>(COLLECTIONS.scores)
     .aggregate<ScoreDoc>([
-      { $match: { platform, course: COURSE } },
+      { $match: { course: COURSE } },
       { $sort: { score: -1 } },
       { $group: { _id: '$playerId', doc: { $first: '$$ROOT' } } },
       { $replaceRoot: { newRoot: '$doc' } },
@@ -136,54 +140,44 @@ export async function topScores(db: Db, platform: Platform, limit: number): Prom
   return docs.map(toRow);
 }
 
-/** This player's best run on each board, and how many runs they have made. */
+/** This player's best run, and how many runs they have made. */
 export async function personalBest(
   db: Db,
   playerId: string
-): Promise<{ best: { pc: ScoreRow | null; mobile: ScoreRow | null }; runs: number }> {
+): Promise<{ best: ScoreRow | null; runs: number }> {
   const scores = db.collection<ScoreDoc>(COLLECTIONS.scores);
   const id = new ObjectId(playerId);
 
-  const [pc, mobile, runs] = await Promise.all([
-    scores.find({ playerId: id, platform: 'pc' }).sort({ score: -1 }).limit(1).next(),
-    scores.find({ playerId: id, platform: 'mobile' }).sort({ score: -1 }).limit(1).next(),
+  const [best, runs] = await Promise.all([
+    scores.find({ playerId: id, course: COURSE }).sort({ score: -1 }).limit(1).next(),
     scores.countDocuments({ playerId: id }),
   ]);
 
-  return {
-    best: { pc: pc ? toRow(pc) : null, mobile: mobile ? toRow(mobile) : null },
-    runs,
-  };
+  return { best: best ? toRow(best) : null, runs };
 }
 
-/** This player's best score on one board, or 0 if they have never run it. */
-async function bestScoreFor(
-  db: Db,
-  playerId: ObjectId,
-  platform: Platform,
-  course: string
-): Promise<number> {
+/** This player's best score, or 0 if they have never finished a run. */
+async function bestScoreFor(db: Db, playerId: ObjectId, course: string): Promise<number> {
   const best = await db
     .collection<ScoreDoc>(COLLECTIONS.scores)
-    .find({ playerId, platform, course })
+    .find({ playerId, course })
     .sort({ score: -1 })
     .limit(1)
     .next();
   return best?.score ?? 0;
 }
 
-/** How many OTHER players on this board are ahead of this player, plus one. */
+/** How many OTHER players are ahead of this player, plus one. */
 async function rankOf(
   db: Db,
   playerId: ObjectId,
-  platform: Platform,
   course: string,
   playerBest: number
 ): Promise<number> {
   const counted = await db
     .collection<ScoreDoc>(COLLECTIONS.scores)
     .aggregate<{ players: number }>([
-      { $match: { platform, course, playerId: { $ne: playerId } } },
+      { $match: { course, playerId: { $ne: playerId } } },
       { $group: { _id: '$playerId', best: { $max: '$score' } } },
       { $match: { best: { $gt: playerBest } } },
       { $count: 'players' },

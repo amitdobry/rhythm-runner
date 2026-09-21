@@ -55,14 +55,14 @@ describe('score routes without a database', () => {
   });
 
   it('GET /api/scores/top needs no cookie: it answers 503, not 401', async () => {
-    const res = await fetch(`${base}/api/scores/top?platform=pc`);
+    const res = await fetch(`${base}/api/scores/top`);
     expect(res.status).toBe(503);
   });
 
-  it('GET /api/scores/top without a platform is 400', async () => {
-    const res = await fetch(`${base}/api/scores/top`);
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/platform/);
+  it('GET /api/scores/top ignores a platform from an older page', async () => {
+    // One board now. An old link with ?platform= must not be an error.
+    const res = await fetch(`${base}/api/scores/top?platform=pc`);
+    expect(res.status).toBe(503); // no database here, but never 400
   });
 
   it('GET /api/scores/me without a cookie is 401', async () => {

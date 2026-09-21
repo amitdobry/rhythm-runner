@@ -49,6 +49,8 @@ async function ensureIndexes(database: Db): Promise<void> {
     .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   // One index per leaderboard question: "who is best on this board?" and
   // "what is this player s best?"
+  // The one board everybody shares, and the older per-platform lookups.
+  await database.collection(COLLECTIONS.scores).createIndex({ course: 1, score: -1 });
   await database.collection(COLLECTIONS.scores).createIndex({ platform: 1, course: 1, score: -1 });
   await database
     .collection(COLLECTIONS.scores)

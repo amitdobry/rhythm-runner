@@ -9,11 +9,12 @@ import { personalBest, saveRun, topScores, validateRun } from '../scores/scores.
  * The score API.
  *
  *   POST /api/scores        save a finished run, get its rank   (needs the cookie)
- *   GET  /api/scores/top    the leaderboard of one platform     (public)
- *   GET  /api/scores/me     my best run on each platform        (needs the cookie)
+ *   GET  /api/scores/top    the leaderboard                     (public)
+ *   GET  /api/scores/me     my best run and how many I have made (needs the cookie)
  *
  * The leaderboard is public on purpose: a child should be able to see the
- * other names before deciding to type their own.
+ * other names before deciding to type their own. There is one board: a phone
+ * and a keyboard play the same game.
  */
 export const scoresRouter = Router();
 
@@ -51,12 +52,9 @@ scoresRouter.post('/', async (req, res) => {
 });
 
 scoresRouter.get('/top', async (req, res) => {
-  const platform = req.query.platform;
-  if (platform !== 'pc' && platform !== 'mobile') {
-    throw new HttpError(400, 'platform must be pc or mobile.');
-  }
+  // One board for everyone. A ?platform= from an older page is simply ignored.
   const db = requireDb();
-  res.json({ rows: await topScores(db, platform, readLimit(req.query.limit)) });
+  res.json({ rows: await topScores(db, readLimit(req.query.limit)) });
 });
 
 scoresRouter.get('/me', async (req, res) => {

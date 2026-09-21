@@ -155,10 +155,10 @@ try {
         `rank ${worse.body.rank}`
       );
 
-      const top = await fetch(`${BASE}/api/scores/top?platform=pc&limit=50`);
+      const top = await fetch(`${BASE}/api/scores/top?limit=50`);
       const topBody = top.ok ? await top.json() : { rows: [] };
       check(
-        'GET /api/scores/top (no cookie needed) lists the nickname',
+        'GET /api/scores/top (no cookie, one board) lists the nickname',
         top.status === 200 && topBody.rows.some((row) => row.nickname === 'Smoke Test'),
         `got ${top.status}`
       );
@@ -166,8 +166,8 @@ try {
       const mine = await fetch(`${BASE}/api/scores/me`, { headers: { cookie } });
       const mineBody = mine.ok ? await mine.json() : {};
       check(
-        'GET /api/scores/me shows my best PC run, not my last one',
-        mine.status === 200 && mineBody.best?.pc?.score === 500 && mineBody.runs >= 2,
+        'GET /api/scores/me shows my best run, not my last one',
+        mine.status === 200 && mineBody.best?.score === 500 && mineBody.runs >= 2,
         `got ${mine.status}`
       );
 
