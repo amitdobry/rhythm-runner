@@ -11,8 +11,15 @@ far in **60 seconds**; lose it, and you slow down and tire out.
 
 ## What you see
 
-- The runner stays in one place on the left. The world moves past: sky and
-  buildings slowly, pavement and lamp posts faster, the road fastest.
+- The runner stays in one place on the left. The world moves past: sun and
+  clouds barely at all, hills and buildings slowly, pavement, trees and lamp
+  posts faster, the road fastest.
+- **The runner is a person**: a face, a shirt in your own colour, arms and
+  knees that swing with the road, and a shadow that flattens as you speed up.
+  The face tells you how it is going before the numbers do - a grin at a long
+  combo, wide eyes and sweat when the energy runs low, spirals after a fall.
+- Your shirt colour comes from your nickname, so it is the same every visit.
+  There is nothing to choose.
 - The road ahead shows what is coming: a slope up, a slope down, a stretch of
   water. Rain streaks or wind lines tell you the weather.
 - Under the runner, two footprints. The one that pulses is the foot that should
@@ -99,6 +106,15 @@ Starts at **100**. Misses and hard ground cost energy; Perfects give a little
 back. At 0 the runner **stumbles**: speed drops to **2**, your steps are ignored
 for **one** pace interval, then you get up with **50** energy.
 
+## Turbo
+
+Every **20** steps in a row, the runner takes off: **+3** speed at once, no
+speed drain at all for **3** seconds, and every point worth **double** while
+it lasts. The screen says so - a white outline, long streaks, the road smeared
+into lines - and so does the sound.
+
+A miss does not end it. A fall does.
+
 ## Combo and score
 
 Every Perfect or Good adds one to the combo. Any miss or skipped step resets
@@ -123,6 +139,11 @@ flat/clear 60  ->  uphill 40  ->  downhill 40  ->  flat/rain 50  ->  water 30
 ```
 
 ## The end of a run
+
+The last five seconds are their own moment: a crowd gathers on the pavement,
+a finish tape comes in from the right, and the seconds count down. The tape
+moves in time rather than in distance, so it reaches you exactly as the clock
+runs out however fast you are going, and you break it.
 
 After **60 seconds** the run stops. You see distance, score, best combo and
 accuracy (good steps divided by all steps and skips). Your best score goes on
