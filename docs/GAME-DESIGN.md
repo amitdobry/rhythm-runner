@@ -35,8 +35,8 @@ right. Step with the foot that pulses.
 ### Why a phone is a different game
 
 A thumb on glass arrives later and less precisely than a finger on a key. So on
-a phone the timing windows are wider (**80 ms** Perfect, **160 ms** Good
-instead of **60** and **120**), and PC and phone scores go on separate
+a phone the timing windows are wider (**110 ms** Perfect, **210 ms** Good
+instead of **90** and **170**), and PC and phone scores go on separate
 leaderboards. The game detects the device; a small PC / Mobile toggle before
 the run lets you override it.
 
@@ -73,9 +73,9 @@ Measured against the moment your step was due:
 
 | Your step                         | Result     | What happens                                       |
 | --------------------------------- | ---------- | -------------------------------------------------- |
-| within **60 ms** (phone **80**)   | Perfect    | speed **+2**, energy **+3**, combo +1              |
-| within **120 ms** (phone **160**) | Good       | speed **+1**, combo +1                             |
-| earlier than that                 | Too fast   | speed **-3**, energy **-10**, combo back to 0      |
+| within **90 ms** (phone **110**)  | Perfect    | speed **+2.5**, energy **+3**, combo +1            |
+| within **170 ms** (phone **210**) | Good       | speed **+1**, combo +1                             |
+| earlier than that                 | Too fast   | speed **-1.5**, energy **-6**, combo back to 0     |
 | later than that                   | Too slow   | same as Too fast                                   |
 | the other foot                    | Wrong foot | same as Too fast                                   |
 | you did not step in time          | Skipped    | combo back to 0, the beat passes to the other foot |
@@ -87,15 +87,15 @@ pace interval after you get up.
 
 ## Speed
 
-Starts at **4** metres per second, can never pass **20**. Every second
-**0.8** drains away on its own (more in the wind), so you must keep stepping.
+Starts at **6** metres per second, can never pass **20**. Every second
+**0.6** drains away on its own (more in the wind), so you must keep stepping.
 Distance is speed added up over time.
 
 ## Energy
 
 Starts at **100**. Misses and hard ground cost energy; Perfects give a little
-back. At 0 the runner **stumbles**: speed drops to **1**, your steps are ignored
-for **one** pace interval, then you get up with **30** energy.
+back. At 0 the runner **stumbles**: speed drops to **2**, your steps are ignored
+for **one** pace interval, then you get up with **50** energy.
 
 ## Combo and score
 
