@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { getDb } from '../database/mongo.js';
-import { findOrCreatePlayer, normaliseNickname } from '../player/players.js';
+import { clearPin, enterWithPin, normaliseNickname } from '../player/players.js';
+import { isPin } from '../player/pin.js';
+import { readAdminKey } from '../config.js';
 import { SESSION_COOKIE, SESSION_DAYS, createSession, deleteSession } from '../player/sessions.js';
 import { findSignedInPlayer, readCookie } from '../player/auth.js';
 import { HttpError } from '../errors.js';
@@ -8,9 +10,13 @@ import { HttpError } from '../errors.js';
 /**
  * The player-entry API.
  *
- *   POST /api/player/enter  { nickname }  -> starts a session, returns the player
- *   GET  /api/player/me                   -> who is this browser? (401 if nobody)
- *   POST /api/player/leave                -> ends the session
+ *   POST /api/player/enter     { nickname, pin } -> claims or opens a name
+ *   GET  /api/player/me                          -> who is this browser? (401 if nobody)
+ *   POST /api/player/leave                       -> ends the session
+ *   POST /api/player/reset-pin { nickname }      -> Amit clears a forgotten code
+ *
+ * The four-digit code is what stops one child saving a score as another. It is
+ * never stored in the clear, never logged, and never sent back to anybody.
  */
 export const playerRouter = Router();
 
@@ -29,17 +35,58 @@ function requireDb() {
 
 playerRouter.post('/enter', async (req, res) => {
   const nickname = normaliseNickname(req.body?.nickname);
-  if (!nickname) {
-    throw new HttpError(
-      400,
-      'Nickname must be 2-20 letters, digits, spaces, dashes or underscores.'
-    );
+  const pin = req.body?.pin;
+  if (!nickname || !isPin(pin)) {
+    res.status(400).json({
+      error: 'A nickname of 2-20 characters and a four-digit code are needed.',
+      code: 'bad_input',
+    });
+    return;
   }
+
   const db = requireDb();
-  const player = await findOrCreatePlayer(db, nickname);
-  const token = await createSession(db, player.id);
+  const result = await enterWithPin(db, nickname, pin);
+
+  if (result.outcome === 'locked') {
+    res.status(423).json({
+      error: 'Too many tries on this name. Wait a little, or pick another name.',
+      code: 'locked',
+      retryAfterSeconds: result.retryAfterSeconds,
+    });
+    return;
+  }
+
+  if (result.outcome === 'wrong_pin') {
+    res.status(401).json({
+      error: 'That code does not match this name.',
+      code: 'wrong_pin',
+      attemptsLeft: result.attemptsLeft,
+    });
+    return;
+  }
+
+  const token = await createSession(db, result.player.id);
   res.cookie(SESSION_COOKIE, token, cookieOptions);
-  res.json({ player });
+  res.json({ player: result.player, claimed: result.outcome === 'claimed' });
+});
+
+/**
+ * Amit's way out when a child forgets their code. Hidden behind the admin key
+ * and, like the analytics summary, a 404 to everybody else.
+ */
+playerRouter.post('/reset-pin', async (req, res) => {
+  const adminKey = readAdminKey();
+  const given = req.header('x-admin-key');
+  if (!adminKey || given !== adminKey) {
+    throw new HttpError(404, `No such API route: ${req.method} ${req.path}`);
+  }
+
+  const nickname = normaliseNickname(req.body?.nickname);
+  if (!nickname) throw new HttpError(400, 'Which nickname?');
+
+  const db = requireDb();
+  await clearPin(db, nickname);
+  res.json({ ok: true });
 });
 
 playerRouter.get('/me', async (req, res) => {

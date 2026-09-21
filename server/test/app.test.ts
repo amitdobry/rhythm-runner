@@ -44,14 +44,30 @@ describe('player routes without a database', () => {
   });
 
   it('POST /api/player/enter rejects a bad nickname with 400', async () => {
-    const res = await postJson('/api/player/enter', { nickname: 'x' });
+    const res = await postJson('/api/player/enter', { nickname: 'x', pin: '1234' });
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/2-20/);
+    expect((await res.json()).code).toBe('bad_input');
   });
 
-  it('POST /api/player/enter with a good nickname answers 503 (database not connected)', async () => {
+  it('POST /api/player/enter without a code is 400', async () => {
     const res = await postJson('/api/player/enter', { nickname: 'Runner 1' });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('bad_input');
+  });
+
+  it('POST /api/player/enter rejects a code that is not four digits', async () => {
+    const res = await postJson('/api/player/enter', { nickname: 'Runner 1', pin: '12a4' });
+    expect(res.status).toBe(400);
+  });
+
+  it('POST /api/player/enter with a name and a code answers 503 (database not connected)', async () => {
+    const res = await postJson('/api/player/enter', { nickname: 'Runner 1', pin: '1234' });
     expect(res.status).toBe(503);
+  });
+
+  it('POST /api/player/reset-pin hides itself with a 404 without the admin key', async () => {
+    const res = await postJson('/api/player/reset-pin', { nickname: 'Runner 1' });
+    expect(res.status).toBe(404);
   });
 
   it('unknown API routes answer 404 as JSON', async () => {
