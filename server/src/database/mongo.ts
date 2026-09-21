@@ -51,6 +51,8 @@ async function ensureIndexes(database: Db): Promise<void> {
   // "what is this player s best?"
   // The one board everybody shares, and the older per-platform lookups.
   await database.collection(COLLECTIONS.scores).createIndex({ course: 1, score: -1 });
+  // The weekly board, which is the one most people look at.
+  await database.collection(COLLECTIONS.scores).createIndex({ course: 1, weekKey: 1, score: -1 });
   await database.collection(COLLECTIONS.scores).createIndex({ platform: 1, course: 1, score: -1 });
   await database
     .collection(COLLECTIONS.scores)

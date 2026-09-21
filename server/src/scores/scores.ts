@@ -1,6 +1,7 @@
 import { Db, ObjectId } from 'mongodb';
 import { COLLECTIONS } from '../database/mongo.js';
 import type { Player } from '../player/players.js';
+import { weekEndFor, weekKeyFor } from './week.js';
 
 /**
  * Everything the server knows about a finished run: how to check one, how to
@@ -8,9 +9,19 @@ import type { Player } from '../player/players.js';
  *
  * The browser sends the numbers, so the server trusts none of them. A run that
  * could not have happened in 60 seconds of the real game is refused.
+ *
+ * There are two boards over the same rows: this week, so the top stays
+ * winnable, and all time. One board for every device.
  */
 
 export type Platform = 'pc' | 'mobile';
+
+/** week = this Sunday-to-Sunday board in Israel; all = every run ever. */
+export type Range = 'week' | 'all';
+
+export function isRange(value: unknown): value is Range {
+  return value === 'week' || value === 'all';
+}
 
 // These three mirror client/src/game/config.ts. If the game changes there -
 // a faster runner, a bigger multiplier, a quicker pace - change them here too.
@@ -45,6 +56,7 @@ interface ScoreDoc {
   _id: ObjectId;
   playerId: ObjectId;
   nickname: string; // copied at save time so the leaderboard needs no join
+  weekKey: string; // the Sunday that starts the Israeli week of createdAt
   score: number;
   distance: number;
   accuracy: number;
@@ -99,37 +111,57 @@ export function validateRun(body: unknown): RunSummary | null {
   return { score, distance, accuracy, bestCombo, runSeconds, platform, course };
 }
 
-export async function saveRun(
-  db: Db,
-  player: Player,
-  summary: RunSummary
-): Promise<{ saved: ScoreRow; rank: number }> {
+export interface SaveResult {
+  saved: ScoreRow;
+  rankWeek: number;
+  rankAll: number;
+  personalBest: boolean;
+  previousBest: number | null;
+}
+
+export async function saveRun(db: Db, player: Player, summary: RunSummary): Promise<SaveResult> {
+  const playerId = new ObjectId(player.id);
+  const createdAt = new Date();
+  const weekKey = weekKeyFor(createdAt);
+
+  // Read the old best BEFORE the insert, or every run would tie with itself.
+  const previousBest = await bestScoreFor(db, playerId, summary.course, null);
+  const personalBest = previousBest === null || summary.score > previousBest;
+
   const doc: ScoreDoc = {
     _id: new ObjectId(),
-    playerId: new ObjectId(player.id),
+    playerId,
     nickname: player.nickname,
+    weekKey,
     ...summary,
-    createdAt: new Date(),
+    createdAt,
   };
   await db.collection<ScoreDoc>(COLLECTIONS.scores).insertOne(doc);
 
   // Rank is where the player stands on the board, not where this one run
   // stands: a run below your own best must not push you down the list.
-  const best = await bestScoreFor(db, doc.playerId, summary.course);
-  const rank = await rankOf(db, doc.playerId, summary.course, best);
-  return { saved: toRow(doc), rank };
+  const [rankWeek, rankAll] = await Promise.all([
+    rankFor(db, playerId, summary.course, weekKey),
+    rankFor(db, playerId, summary.course, null),
+  ]);
+
+  return { saved: toRow(doc), rankWeek, rankAll, personalBest, previousBest };
 }
 
 /**
  * One row per player, best score first. One board for everyone: the phone
  * layout is a layout, not a different game, so a thumb and a keyboard are
- * ranked together. Which device it was is kept on the row for analytics.
+ * ranked together. Pass a weekKey for this week's board, null for all time.
  */
-export async function topScores(db: Db, limit: number): Promise<ScoreRow[]> {
+export async function topScores(
+  db: Db,
+  limit: number,
+  weekKey: string | null
+): Promise<ScoreRow[]> {
   const docs = await db
     .collection<ScoreDoc>(COLLECTIONS.scores)
     .aggregate<ScoreDoc>([
-      { $match: { course: COURSE } },
+      { $match: weekKey ? { course: COURSE, weekKey } : { course: COURSE } },
       { $sort: { score: -1 } },
       { $group: { _id: '$playerId', doc: { $first: '$$ROOT' } } },
       { $replaceRoot: { newRoot: '$doc' } },
@@ -140,44 +172,88 @@ export async function topScores(db: Db, limit: number): Promise<ScoreRow[]> {
   return docs.map(toRow);
 }
 
-/** This player's best run, and how many runs they have made. */
+/** This player's best run this week and ever, and how many runs they have made. */
 export async function personalBest(
   db: Db,
-  playerId: string
-): Promise<{ best: ScoreRow | null; runs: number }> {
+  playerId: string,
+  now = new Date()
+): Promise<{ best: { week: ScoreRow | null; all: ScoreRow | null }; runs: number }> {
   const scores = db.collection<ScoreDoc>(COLLECTIONS.scores);
   const id = new ObjectId(playerId);
+  const weekKey = weekKeyFor(now);
 
-  const [best, runs] = await Promise.all([
+  const [week, all, runs] = await Promise.all([
+    scores.find({ playerId: id, course: COURSE, weekKey }).sort({ score: -1 }).limit(1).next(),
     scores.find({ playerId: id, course: COURSE }).sort({ score: -1 }).limit(1).next(),
     scores.countDocuments({ playerId: id }),
   ]);
 
-  return { best: best ? toRow(best) : null, runs };
+  return {
+    best: { week: week ? toRow(week) : null, all: all ? toRow(all) : null },
+    runs,
+  };
 }
 
-/** This player's best score, or 0 if they have never finished a run. */
-async function bestScoreFor(db: Db, playerId: ObjectId, course: string): Promise<number> {
+/** Where a player stands on one board, and their own row - or null if absent. */
+export async function standingFor(
+  db: Db,
+  playerId: string,
+  weekKey: string | null
+): Promise<{ rank: number; row: ScoreRow } | null> {
+  const id = new ObjectId(playerId);
+  const filter = weekKey
+    ? { playerId: id, course: COURSE, weekKey }
+    : { playerId: id, course: COURSE };
+
   const best = await db
     .collection<ScoreDoc>(COLLECTIONS.scores)
-    .find({ playerId, course })
+    .find(filter)
     .sort({ score: -1 })
     .limit(1)
     .next();
-  return best?.score ?? 0;
+  if (!best) return null;
+
+  return { rank: await rankFor(db, id, COURSE, weekKey), row: toRow(best) };
 }
 
-/** How many OTHER players are ahead of this player, plus one. */
-async function rankOf(
+/** The week a board covers, as two dates a page can show. */
+export function weekWindow(now = new Date()): { weekStart: string; weekEnd: string } {
+  const weekStart = weekKeyFor(now);
+  return { weekStart, weekEnd: weekEndFor(weekStart) };
+}
+
+/** This player's best score on one board, or null if they have never run it. */
+async function bestScoreFor(
   db: Db,
   playerId: ObjectId,
   course: string,
-  playerBest: number
+  weekKey: string | null
+): Promise<number | null> {
+  const best = await db
+    .collection<ScoreDoc>(COLLECTIONS.scores)
+    .find(weekKey ? { playerId, course, weekKey } : { playerId, course })
+    .sort({ score: -1 })
+    .limit(1)
+    .next();
+  return best?.score ?? null;
+}
+
+/** How many OTHER players are ahead of this player on one board, plus one. */
+async function rankFor(
+  db: Db,
+  playerId: ObjectId,
+  course: string,
+  weekKey: string | null
 ): Promise<number> {
+  const playerBest = (await bestScoreFor(db, playerId, course, weekKey)) ?? 0;
+  const match = weekKey
+    ? { course, weekKey, playerId: { $ne: playerId } }
+    : { course, playerId: { $ne: playerId } };
+
   const counted = await db
     .collection<ScoreDoc>(COLLECTIONS.scores)
     .aggregate<{ players: number }>([
-      { $match: { course, playerId: { $ne: playerId } } },
+      { $match: match },
       { $group: { _id: '$playerId', best: { $max: '$score' } } },
       { $match: { best: { $gt: playerBest } } },
       { $count: 'players' },

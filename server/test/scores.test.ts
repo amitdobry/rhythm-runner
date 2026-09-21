@@ -65,6 +65,17 @@ describe('score routes without a database', () => {
     expect(res.status).toBe(503); // no database here, but never 400
   });
 
+  it('GET /api/scores/top?range=all is public too', async () => {
+    const res = await fetch(`${base}/api/scores/top?range=all`);
+    expect(res.status).toBe(503); // not 401
+  });
+
+  it('GET /api/scores/top refuses a range the game does not have', async () => {
+    const res = await fetch(`${base}/api/scores/top?range=x`);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/range/);
+  });
+
   it('GET /api/scores/me without a cookie is 401', async () => {
     const res = await fetch(`${base}/api/scores/me`);
     expect(res.status).toBe(401);

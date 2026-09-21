@@ -22,6 +22,11 @@ const PORT = Number(process.env.SMOKE_PORT ?? 4100);
 const BASE = `http://127.0.0.1:${PORT}`;
 const serverDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'server');
 
+// A throwaway name and code, in a throwaway database.
+const NICKNAME = 'Smoke Test';
+const PIN = '4821';
+const WRONG_PIN = '1111';
+
 // A throwaway database, never the one the public leaderboard reads.
 const SMOKE_DB = process.env.SMOKE_DB_NAME ?? 'rhythm_runner_smoke';
 
@@ -83,7 +88,7 @@ try {
     const enter = await fetch(`${BASE}/api/player/enter`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ nickname: 'Smoke Test' }),
+      body: JSON.stringify({ nickname: NICKNAME, pin: PIN }),
     });
 
     if (health.database !== 'connected') {
@@ -95,7 +100,7 @@ try {
     } else {
       const cookie = enter.headers.get('set-cookie')?.split(';')[0] ?? '';
       check(
-        'POST /api/player/enter creates a session',
+        'POST /api/player/enter claims the name and creates a session',
         enter.status === 200 && cookie.startsWith('rr_session='),
         `got ${enter.status}`
       );
@@ -104,8 +109,33 @@ try {
       const body = me1.ok ? await me1.json() : {};
       check(
         'GET /api/player/me with the cookie returns the player',
-        me1.status === 200 && body.player?.nickname === 'Smoke Test',
+        me1.status === 200 && body.player?.nickname === NICKNAME,
         `got ${me1.status}`
+      );
+
+      // The name is claimed now, so it must refuse the wrong code and accept
+      // the right one.
+      const enterAgain = (pin) =>
+        fetch(`${BASE}/api/player/enter`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ nickname: NICKNAME, pin }),
+        });
+
+      const wrong = await enterAgain(WRONG_PIN);
+      const wrongBody = wrong.status === 401 ? await wrong.json() : {};
+      check(
+        'a claimed name refuses the wrong code',
+        wrong.status === 401 && wrongBody.code === 'wrong_pin',
+        `got ${wrong.status}`
+      );
+
+      const right = await enterAgain(PIN);
+      const rightBody = right.status === 200 ? await right.json() : {};
+      check(
+        'the right code opens the name without claiming it again',
+        right.status === 200 && rightBody.claimed === false,
+        `got ${right.status}`
       );
 
       // Two finished runs. The second is worse than the first: the rank must
@@ -130,15 +160,18 @@ try {
         course: 'level-1',
       });
       check(
-        'POST /api/scores saves the run and answers with a rank',
-        good.status === 201 && typeof good.body.rank === 'number',
+        'POST /api/scores saves the run and answers with both ranks',
+        good.status === 201 &&
+          typeof good.body.rankWeek === 'number' &&
+          typeof good.body.rankAll === 'number',
         `got ${good.status}`
       );
       check(
-        'the only player on the board is ranked 1',
-        good.body.rank === 1,
-        `rank ${good.body.rank}`
+        'the only player on the board is ranked 1 this week and ever',
+        good.body.rankWeek === 1 && good.body.rankAll === 1,
+        `week ${good.body.rankWeek}, all ${good.body.rankAll}`
       );
+      check('the first run of a name is a personal best', good.body.personalBest === true);
 
       const worse = await postRun({
         score: 100,
@@ -151,23 +184,37 @@ try {
       });
       check(
         'a run below your own best does not push you down the board',
-        worse.status === 201 && worse.body.rank === 1,
-        `rank ${worse.body.rank}`
+        worse.status === 201 && worse.body.rankWeek === 1 && worse.body.rankAll === 1,
+        `week ${worse.body.rankWeek}, all ${worse.body.rankAll}`
       );
+      check('a worse run is not a personal best', worse.body.personalBest === false);
 
-      const top = await fetch(`${BASE}/api/scores/top?limit=50`);
+      const top = await fetch(`${BASE}/api/scores/top?range=week&limit=50`, {
+        headers: { cookie },
+      });
       const topBody = top.ok ? await top.json() : { rows: [] };
       check(
-        'GET /api/scores/top (no cookie, one board) lists the nickname',
-        top.status === 200 && topBody.rows.some((row) => row.nickname === 'Smoke Test'),
+        "GET /api/scores/top?range=week lists the nickname and this week's dates",
+        top.status === 200 &&
+          topBody.rows.some((row) => row.nickname === NICKNAME) &&
+          Boolean(topBody.weekStart) &&
+          Boolean(topBody.weekEnd),
         `got ${top.status}`
+      );
+      check(
+        'the weekly board knows where I stand',
+        topBody.me?.rank === 1,
+        `rank ${topBody.me?.rank}`
       );
 
       const mine = await fetch(`${BASE}/api/scores/me`, { headers: { cookie } });
       const mineBody = mine.ok ? await mine.json() : {};
       check(
-        'GET /api/scores/me shows my best run, not my last one',
-        mine.status === 200 && mineBody.best?.score === 500 && mineBody.runs >= 2,
+        'GET /api/scores/me shows my best run this week and ever, not my last one',
+        mine.status === 200 &&
+          mineBody.best?.all?.score === 500 &&
+          mineBody.best?.week?.score === 500 &&
+          mineBody.runs >= 2,
         `got ${mine.status}`
       );
 

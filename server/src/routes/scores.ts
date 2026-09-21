@@ -1,20 +1,30 @@
 import { Router } from 'express';
 import { getDb } from '../database/mongo.js';
 import { HttpError } from '../errors.js';
-import { readCookie, requirePlayer } from '../player/auth.js';
+import { findSignedInPlayer, readCookie, requirePlayer } from '../player/auth.js';
 import { SESSION_COOKIE } from '../player/sessions.js';
-import { personalBest, saveRun, topScores, validateRun } from '../scores/scores.js';
+import {
+  isRange,
+  personalBest,
+  saveRun,
+  standingFor,
+  topScores,
+  validateRun,
+  weekWindow,
+  type Range,
+} from '../scores/scores.js';
 
 /**
  * The score API.
  *
- *   POST /api/scores        save a finished run, get its rank   (needs the cookie)
- *   GET  /api/scores/top    the leaderboard                     (public)
+ *   POST /api/scores        save a finished run, get its ranks   (needs the cookie)
+ *   GET  /api/scores/top    the leaderboard, this week or ever   (public)
  *   GET  /api/scores/me     my best run and how many I have made (needs the cookie)
  *
  * The leaderboard is public on purpose: a child should be able to see the
  * other names before deciding to type their own. There is one board: a phone
- * and a keyboard play the same game.
+ * and a keyboard play the same game. The weekly view is the default, so the
+ * top of it stays winnable by somebody who arrives in November.
  */
 export const scoresRouter = Router();
 
@@ -39,6 +49,12 @@ function readLimit(value: unknown): number {
   return Math.min(Math.floor(limit), MAX_LIMIT);
 }
 
+function readRange(value: unknown): Range {
+  if (value === undefined) return 'week'; // the board a visitor should see first
+  if (!isRange(value)) throw new HttpError(400, 'range must be week or all.');
+  return value;
+}
+
 scoresRouter.post('/', async (req, res) => {
   requireCookie(readCookie(req, SESSION_COOKIE));
   const db = requireDb();
@@ -47,14 +63,28 @@ scoresRouter.post('/', async (req, res) => {
   const summary = validateRun(req.body);
   if (!summary) throw new HttpError(400, 'That run does not look like a real run.');
 
-  const { saved, rank } = await saveRun(db, player, summary);
-  res.status(201).json({ saved, rank });
+  res.status(201).json(await saveRun(db, player, summary));
 });
 
 scoresRouter.get('/top', async (req, res) => {
   // One board for everyone. A ?platform= from an older page is simply ignored.
+  const range = readRange(req.query.range);
   const db = requireDb();
-  res.json({ rows: await topScores(db, readLimit(req.query.limit)) });
+  const { weekStart, weekEnd } = weekWindow();
+  const weekKey = range === 'week' ? weekStart : null;
+
+  const rows = await topScores(db, readLimit(req.query.limit), weekKey);
+
+  // A signed-in visitor also gets their own standing, so somebody outside the
+  // top ten can still see where they are.
+  let me = null;
+  const token = readCookie(req, SESSION_COOKIE);
+  if (token) {
+    const player = await findSignedInPlayer(db, token);
+    if (player) me = await standingFor(db, player.id, weekKey);
+  }
+
+  res.json({ range, weekStart, weekEnd, rows, me });
 });
 
 scoresRouter.get('/me', async (req, res) => {
