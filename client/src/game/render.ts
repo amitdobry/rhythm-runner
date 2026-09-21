@@ -4,7 +4,7 @@
 // Everything that moves is moved by state.distance, never by the clock. Two
 // screenshots of the same state look exactly the same.
 
-import { currentTargetIntervalMs, type GameState } from './engine';
+import { currentTargetIntervalMs, type GameEvent, type GameState } from './engine';
 import { segmentAt, upcomingSegments, type SegmentPosition } from './course';
 import { oppositeFoot } from './pace';
 import type { Segment, Weather } from './config';
@@ -53,7 +53,7 @@ const RUNNER_LEG_READY = '#ffd23f';
 const RUNNER_STUMBLE = '#e8503a';
 
 const FOOTPRINT = '#cfd6e0';
-const FOOTPRINT_READY = '#ffd23f';
+const FOOTPRINT_DUE = '#1d2230'; // the foot that is due, dark against the target
 const RING = '#ffffff';
 const FLASH_PERFECT = '#3ddc84';
 const FLASH_GOOD = '#ffd23f';
@@ -87,6 +87,11 @@ const LAMP_SPACING = 190;
 const DASH_LENGTH = 26;
 const DASH_PERIOD = 60;
 const FLASH_MS = 150;
+const FOOT_GAP = 46; // x scale: far enough apart that one target does not reach the other foot
+// The radius the flying ring reaches at the due moment, and the middle of the
+// green band. Everything else on the target is a ratio of it.
+const TARGET_BASE = 22;
+const STEP_EVENTS: GameEvent[] = ['perfect', 'good', 'tooFast', 'tooSlow', 'wrongFoot'];
 const BANNER_MS = 1500;
 const FONT = 'Heebo, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
@@ -468,7 +473,10 @@ function drawRunner(
   ctx.restore();
 }
 
-/** The two footprints, the shrinking pace ring, and the flash after an event. */
+/**
+ * The two footprints, the dartboard under the one that is due, and the flash
+ * after an event.
+ */
 function drawFootprints(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -476,51 +484,103 @@ function drawFootprints(
   groundY: number,
   scale: number
 ): void {
-  const gap = 30 * scale;
+  const gap = FOOT_GAP * scale;
   const radius = 13 * scale;
   const y = groundY + 10 * scale;
 
   const flash = flashColour(state);
   const steppedFoot = oppositeFoot(state.expectedFoot);
 
+  // The target goes down first, so the footprint sits on top of it.
+  const dueX = state.expectedFoot === 'left' ? x - gap : x + gap;
+  drawPaceTarget(ctx, state, dueX, y, scale);
+
   for (const foot of ['left', 'right'] as const) {
     const footX = foot === 'left' ? x - gap : x + gap;
     const isNext = foot === state.expectedFoot;
 
-    ctx.fillStyle = flash && foot === steppedFoot ? flash : isNext ? FOOTPRINT_READY : FOOTPRINT;
+    ctx.fillStyle = flash && foot === steppedFoot ? flash : isNext ? FOOTPRINT_DUE : FOOTPRINT;
     ctx.beginPath();
     ctx.ellipse(footX, y, radius * 0.66, radius, 0, 0, Math.PI * 2);
     ctx.fill();
-
-    if (isNext) drawPaceRing(ctx, state, footX, y, radius, scale);
   }
 
   if (state.lastEvent?.kind === 'wrongFoot' && flash) {
     ctx.fillStyle = FLASH_BAD;
     ctx.font = `bold ${16 * scale}px ${FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillText(T.otherFoot, x, y + 34 * scale);
+    ctx.fillText(T.otherFoot, x, y + 46 * scale);
   }
 }
 
-function drawPaceRing(
+/**
+ * The pace target: a dartboard whose rings ARE the timing windows, and a
+ * white ring flying inwards that reaches the middle exactly when the step is
+ * due. Step when the ring is on green. Because the zones are drawn from the
+ * windows and the current interval, they widen by themselves on a phone and
+ * the ring visibly changes speed when the road changes.
+ */
+function drawPaceTarget(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   x: number,
   y: number,
-  radius: number,
   scale: number
 ): void {
   const interval = currentTargetIntervalMs(state);
-  const remaining = state.nextDueMs - state.timeMs;
-  const progress = clamp01(1 - remaining / interval);
-  const ringRadius = radius * (1.5 - 0.5 * progress);
+  const base = TARGET_BASE * scale;
+  const perfectRatio = state.config.perfectWindowMs / interval;
+  const goodRatio = state.config.goodWindowMs / interval;
 
-  ctx.strokeStyle = RING;
-  ctx.lineWidth = 2.5 * scale;
+  const outerRed = base * (1 + goodRatio) + 6 * scale;
+  const event = state.lastEvent;
+  const fresh =
+    event !== null && state.timeMs >= event.atMs && state.timeMs - event.atMs <= FLASH_MS;
+
+  if (fresh && event.kind === 'skipped') {
+    // A missed step turns the whole target red for a moment.
+    disc(ctx, x, y, outerRed, FLASH_BAD);
+  } else {
+    disc(ctx, x, y, outerRed, FLASH_BAD);
+    disc(ctx, x, y, base * (1 + goodRatio), FLASH_GOOD);
+    disc(ctx, x, y, base * (1 + perfectRatio), FLASH_PERFECT);
+    disc(ctx, x, y, base * (1 - perfectRatio), FLASH_GOOD);
+    disc(ctx, x, y, base * (1 - goodRatio), FLASH_BAD);
+  }
+
+  // Where the ring is now. After a step it freezes for a moment in the
+  // result colour, at the radius it had when the foot landed.
+  const stepped = fresh && STEP_EVENTS.includes(event.kind);
+  const ringRadius = stepped
+    ? base * (1 - (state.lastOffsetMs ?? 0) / interval)
+    : base * (1 + (state.nextDueMs - state.timeMs) / interval);
+
+  ctx.strokeStyle = stepped ? (resultColour(event.kind) ?? RING) : RING;
+  ctx.lineWidth = 3 * scale;
   ctx.beginPath();
-  ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
+  ctx.arc(x, y, Math.max(0, Math.min(ringRadius, outerRed + 18 * scale)), 0, Math.PI * 2);
   ctx.stroke();
+}
+
+function disc(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  colour: string
+): void {
+  if (radius <= 0) return;
+  ctx.fillStyle = colour;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function resultColour(kind: GameEvent): string | null {
+  if (kind === 'perfect') return FLASH_PERFECT;
+  if (kind === 'good') return FLASH_GOOD;
+  if (kind === 'tooFast' || kind === 'tooSlow' || kind === 'wrongFoot') return FLASH_BAD;
+  return null;
 }
 
 function flashColour(state: GameState): string | null {
