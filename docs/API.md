@@ -84,22 +84,23 @@ above the most steps that fit in the run at the fastest pace, unknown
 `platform`, missing `course`.
 
 - `201 { "saved": ScoreRow, "rank": 3 }` where `rank` is the player's position
-  on the leaderboard of the same platform after this save (1 = best; other
-  players with a higher best score, plus one).
+  on the leaderboard after this save (1 = best; other players with a higher
+  best score, plus one). One board: phone and keyboard are ranked together.
 - `400` invalid body. `503` no database.
 
 ### `GET /api/scores/top?limit=10` - public (no session needed)
 
-**Changing in M6 item 10:** one board for everyone; the `platform` query is
-ignored. Until then the route still takes `platform=pc|mobile`.
+One board for everyone. `limit` default 10, max 50. A `platform` query from
+an older page is ignored, never an error.
 
-`platform` required (`pc` or `mobile`); `limit` default 10, max 50.
-`200 { "rows": ScoreRow[] }`, best score per player, highest first. PC and
-mobile are separate boards because the timing windows differ.
+`200 { "rows": ScoreRow[] }`, best score per player, highest first, across
+both kinds of device. `ScoreRow.platform` says what the run was played on;
+nothing ranks by it.
 
 ### `GET /api/scores/me` - session
 
-`200 { "best": { "pc": ScoreRow | null, "mobile": ScoreRow | null }, "runs": 12 }`.
+`200 { "best": ScoreRow | null, "runs": 12 }` - the player's best run, and how
+many they have finished.
 
 ## Events
 

@@ -32,13 +32,15 @@ right. Step with the foot that pulses.
 | Right foot | `→` or `J`, or click the right half of the game | the big right pad at the bottom |
 | Hold it    | landscape                                       | upright, thumbs on the pads     |
 
-### Why a phone is a different game
+### Why a phone gets a little more room
 
 A thumb on glass arrives later and less precisely than a finger on a key. So on
-a phone the timing windows are wider (**110 ms** Perfect, **210 ms** Good
-instead of **90** and **170**), and PC and phone scores go on separate
-leaderboards. The game detects the device; a small PC / Mobile toggle before
-the run lets you override it.
+a phone the timing windows are wider: **110 ms** Perfect and **210 ms** Good,
+instead of **90** and **170**. The game works out which kind of device it is
+and lays itself out to suit; there is nothing to choose.
+
+It is still one game, and **one leaderboard for everyone**. Which device a run
+was played on is remembered with the run, but nobody is ranked by it.
 
 ## The pace
 
@@ -124,9 +126,18 @@ flat/clear 60  ->  uphill 40  ->  downhill 40  ->  flat/rain 50  ->  water 30
 
 After **60 seconds** the run stops. You see distance, score, best combo and
 accuracy (good steps divided by all steps and skips). Your best score goes on
-the leaderboard for your device, PC or phone, under your nickname, and the
-overlay tells you where you now stand on that board. The boards are public:
-you can read them on the enter screen before picking a nickname at all.
+the leaderboard under your nickname, and the overlay tells you where you now
+stand against everybody else. The board is public: you can read it on the
+first screen before picking a nickname at all.
+
+## What you hear
+
+Every moment that matters makes a noise: a cue before the run, a quiet loop
+while you run, a tick when the next step is due, and a different sound for a
+perfect step, a good one, a mistimed one, a beat you let go by, a fall, and
+the end of the run. When several things go wrong at once only the worst of
+them is heard, so a bad patch does not turn into noise. A speaker button
+silences all of it, and remembers.
 
 ## What is deliberately not here yet
 
