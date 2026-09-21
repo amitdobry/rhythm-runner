@@ -67,6 +67,23 @@ export const T = Object.freeze({
   behindClose: 'סגירה',
   builtWith: 'נבנה על ידי עמית עם Claude Code',
 
+  pinLabel: 'קוד סודי, 4 ספרות',
+  pinHint: 'הקוד שומר על השם שלכם: בלי הקוד אף אחד אחר לא יכול לשמור תוצאה בשם הזה. תזכרו אותו!',
+  pinFormat: 'הקוד הוא בדיוק 4 ספרות',
+  wrongPin: 'הקוד לא מתאים לשם הזה. אם זה לא השם שלכם, בחרו שם אחר. נותרו {n} ניסיונות',
+  pinLocked: 'יותר מדי ניסיונות. נסו שוב בעוד {minutes} דקות, או בחרו שם אחר',
+  nameClaimed: 'השם {name} שלכם עכשיו. הקוד שומר עליו',
+  welcomeBack: 'ברוכים השבים, {name}!',
+
+  thisWeek: 'השבוע',
+  allTime: 'כל הזמנים',
+  resetsSunday: 'הטבלה מתאפסת ביום ראשון',
+  yourRow: 'המקום שלכם',
+
+  newBest: 'שיא חדש!',
+  firstBest: 'השיא הראשון שלכם!',
+  ranks: 'מקום {week} השבוע · מקום {all} בכל הזמנים',
+
   soundOn: 'הקול פועל',
   soundOff: 'הקול כבוי',
 

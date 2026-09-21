@@ -25,7 +25,10 @@ export type EventName =
   | 'leaderboard_viewed'
   | 'workshop_shown'
   | 'workshop_clicked'
-  | 'behind_opened';
+  | 'behind_opened'
+  | 'pin_wrong'
+  | 'pin_locked'
+  | 'personal_best';
 
 const SID_KEY = 'rr_sid';
 const REF_KEY = 'rr_ref';

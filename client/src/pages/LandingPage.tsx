@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePlayer } from '../player/PlayerContext';
-import { fetchMyBest, fetchTopScores, type MyScores, type ScoreRow } from '../services/api';
+import {
+  fetchMyBest,
+  fetchTopScores,
+  type MyScores,
+  type Range,
+  type TopScores,
+} from '../services/api';
 import { T, fill, formatNumber } from '../text/he';
 import { track } from '../analytics/analytics';
 import { NicknameForm } from '../components/NicknameForm';
@@ -85,7 +91,7 @@ function MyBestLine() {
 
 /** "one run" is not "1 runs": Hebrew needs its own sentence for a single run. */
 export function bestLine(mine: MyScores): string {
-  const score = mine.best ? formatNumber(mine.best.score) : '—';
+  const score = mine.best.all ? formatNumber(mine.best.all.score) : '—';
   return mine.runs === 1
     ? fill(T.yourBestOne, { score })
     : fill(T.yourBest, { score, runs: formatNumber(mine.runs) });
@@ -93,19 +99,20 @@ export function bestLine(mine: MyScores): string {
 
 /** The board, and where the player sits on it. */
 function HighScores({ nickname }: { nickname?: string }) {
-  const [rows, setRows] = useState<ScoreRow[] | null>(null);
+  const [range, setRange] = useState<Range>('week');
+  const [board, setBoard] = useState<TopScores | null>(null);
   const [mine, setMine] = useState<MyScores | null>(null);
   const [failed, setFailed] = useState(false);
   const seen = useRef(false);
 
   useEffect(() => {
     let current = true;
-    setRows(null);
+    setBoard(null);
     setFailed(false);
-    fetchTopScores(10)
+    fetchTopScores(range, 10)
       .then((found) => {
         if (!current) return;
-        setRows(found);
+        setBoard(found);
         if (!seen.current) {
           seen.current = true;
           track('leaderboard_viewed');
@@ -115,7 +122,7 @@ function HighScores({ nickname }: { nickname?: string }) {
     return () => {
       current = false;
     };
-  }, []);
+  }, [range]);
 
   useEffect(() => {
     fetchMyBest()
@@ -123,9 +130,25 @@ function HighScores({ nickname }: { nickname?: string }) {
       .catch(() => setMine(null));
   }, [nickname]);
 
+  const rows = board?.rows ?? null;
+  // Somebody outside the top ten still deserves to see where they are.
+  const me = board?.me ?? null;
+  const showOwnRow = me !== null && me.rank > (rows?.length ?? 0);
+
   return (
     <section className="panel scores">
       <h2>{T.highScores}</h2>
+
+      <div className="range-switch">
+        <button className={range === 'week' ? 'chosen' : ''} onClick={() => setRange('week')}>
+          {T.thisWeek}
+        </button>
+        <button className={range === 'all' ? 'chosen' : ''} onClick={() => setRange('all')}>
+          {T.allTime}
+        </button>
+      </div>
+
+      {range === 'week' && <p className="muted">{T.resetsSunday}</p>}
 
       {failed && <p className="muted">{T.scoresUnavailable}</p>}
       {!failed && rows !== null && rows.length === 0 && <p className="muted">{T.noRunsYet}</p>}
@@ -153,6 +176,21 @@ function HighScores({ nickname }: { nickname?: string }) {
                 </td>
               </tr>
             ))}
+            {showOwnRow && (
+              <>
+                <tr className="own-row-gap">
+                  <td colSpan={4}>{T.yourRow}</td>
+                </tr>
+                <tr className="me">
+                  <td className="num">{me.rank}</td>
+                  <td title={me.row.nickname}>{shortName(me.row.nickname)}</td>
+                  <td className="num">{formatNumber(me.row.score)}</td>
+                  <td className="num">
+                    {formatNumber(me.row.distance)} {T.meters}
+                  </td>
+                </tr>
+              </>
+            )}
           </tbody>
         </table>
       )}

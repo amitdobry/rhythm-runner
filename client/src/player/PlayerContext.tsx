@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { enterAsPlayer, fetchMe, leave, type Player } from '../services/api';
+import { enterAsPlayer, fetchMe, leave, type EnterResult, type Player } from '../services/api';
 
 /**
  * "Who is playing right now?" - available to every screen.
@@ -8,7 +8,8 @@ import { enterAsPlayer, fetchMe, leave, type Player } from '../services/api';
 interface PlayerContextValue {
   player: Player | null;
   loading: boolean;
-  enter: (nickname: string) => Promise<void>;
+  /** Claims the name if it is free, opens it if the code is right. */
+  enter: (nickname: string, pin: string) => Promise<EnterResult>;
   logout: () => Promise<void>;
 }
 
@@ -25,8 +26,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const enter = async (nickname: string) => {
-    setPlayer(await enterAsPlayer(nickname));
+  const enter = async (nickname: string, pin: string) => {
+    const result = await enterAsPlayer(nickname, pin);
+    setPlayer(result.player);
+    return result;
   };
 
   const logout = async () => {

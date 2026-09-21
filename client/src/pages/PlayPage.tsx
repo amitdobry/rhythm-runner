@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePlayer } from '../player/PlayerContext';
-import { submitScore, type RunSummary } from '../services/api';
+import { submitScore, type RunSummary, type SavedScore } from '../services/api';
 import { configForPlatform, type Foot, type Platform } from '../game/config';
 import { summarize } from '../game/engine';
 import { detectPlatform, readOverride } from '../game/platform';
@@ -15,6 +15,7 @@ import { WorkshopReveal } from '../components/WorkshopReveal';
 import { BehindTheGame } from '../components/BehindTheGame';
 import { NicknameForm } from '../components/NicknameForm';
 import { MuteButton } from '../components/MuteButton';
+import { Celebration } from '../components/Celebration';
 
 const TUTORIAL_DONE_KEY = 'rr_tutorial_done';
 const TUTORIAL_CHEER_MS = 700;
@@ -24,7 +25,7 @@ const COUNT_UP_MS = 600;
 type Saved =
   | { status: 'idle' }
   | { status: 'saving' }
-  | { status: 'saved'; rank: number }
+  | { status: 'saved'; result: SavedScore }
   | { status: 'failed' };
 
 /** The screen you play on. Two layouts: keys on a PC, two pads on a phone. */
@@ -220,6 +221,14 @@ export function PlayPage() {
         {phase === 'finished' && finished !== null && (
           <div className="overlay overlay-results">
             <h2>{T.runFinished}</h2>
+            {saved.status === 'saved' && saved.result.personalBest && (
+              <>
+                <p className="best-banner">
+                  {saved.result.previousBest === null ? T.firstBest : T.newBest}
+                </p>
+                <Celebration />
+              </>
+            )}
             <Results summary={summarize(finished)} />
 
             <SaveStep
@@ -307,8 +316,9 @@ async function send(summary: RunSummary, setSaved: (saved: Saved) => void): Prom
   setSaved({ status: 'saving' });
   try {
     const result = await submitScore(summary);
-    setSaved({ status: 'saved', rank: result.rank });
+    setSaved({ status: 'saved', result });
     track('score_saved');
+    if (result.personalBest) track('personal_best');
   } catch {
     setSaved({ status: 'failed' });
   }
@@ -382,7 +392,14 @@ function SaveStep({
 }) {
   if (saved.status === 'saving') return <p className="score-note">{T.savingScore}</p>;
   if (saved.status === 'saved') {
-    return <p className="score-note">{fill(T.rank, { n: formatNumber(saved.rank) })}</p>;
+    return (
+      <p className="score-note">
+        {fill(T.ranks, {
+          week: formatNumber(saved.result.rankWeek),
+          all: formatNumber(saved.result.rankAll),
+        })}
+      </p>
+    );
   }
   if (saved.status === 'failed') return <p className="score-note muted">{T.scoreNotSaved}</p>;
 

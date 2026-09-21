@@ -616,3 +616,75 @@ button.primary.big {
 .play-mobile.play-over .play-canvas {
   align-self: flex-start;
 }
+
+/* ---------------------------------------------------------------- M7 */
+
+.pin-hint {
+  margin: -4px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.range-switch {
+  display: flex;
+  gap: 6px;
+}
+.range-switch button {
+  padding: 4px 14px;
+}
+.range-switch button.chosen {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+
+/* the gap that says "and now, further down the list, you" */
+.own-row-gap td {
+  padding-top: 10px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center !important;
+  border-top: 1px dashed var(--line);
+}
+
+.best-banner {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #3ddc84;
+}
+
+/* ---------------------------------------------------------------- confetti */
+
+.celebration {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.celebration i {
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation: confetti-fall 1.4s ease-in forwards;
+}
+
+@keyframes confetti-fall {
+  from {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--drift), 70vh) rotate(var(--spin));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebration {
+    display: none;
+  }
+}
