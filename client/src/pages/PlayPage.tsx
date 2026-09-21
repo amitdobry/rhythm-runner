@@ -100,12 +100,23 @@ export function PlayPage() {
     if (phase === 'running') track('run_started');
   }, [phase]);
 
-  // A run somebody walked away from is worth knowing about.
+  // A run somebody walked away from is worth knowing about, and how far in.
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
+  const startedAtRef = useRef(0);
+  const runSecondsRef = useRef(config.runSeconds);
+  runSecondsRef.current = config.runSeconds;
+  useEffect(() => {
+    if (phase === 'running' && startedAtRef.current === 0) startedAtRef.current = Date.now();
+    if (phase !== 'running') startedAtRef.current = 0;
+  }, [phase]);
   useEffect(() => {
     const report = () => {
-      if (phaseRef.current === 'running') track('run_abandoned', { atSeconds: 0 });
+      if (phaseRef.current !== 'running' || startedAtRef.current === 0) return;
+      const seconds = (Date.now() - startedAtRef.current) / 1000;
+      track('run_abandoned', {
+        atSeconds: Math.min(runSecondsRef.current, Math.round(seconds)),
+      });
     };
     window.addEventListener('pagehide', report);
     return () => {
