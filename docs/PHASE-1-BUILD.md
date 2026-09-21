@@ -213,7 +213,8 @@ export interface SegmentPosition {
   index: number; // index into config.course
   segment: Segment;
   startMeters: number; // where this segment starts, in course-loop metres
-  metersIntoSegment: number;
+  metersIntoSegment: number; // 0 for segments not reached yet
+  aheadMeters: number; // metres from the runner to this segment's start; negative for the one under foot
 }
 
 export function courseLengthMeters(course: Segment[]): number; // sum of lengths
@@ -278,12 +279,13 @@ export interface GameState {
   expectedFoot: Foot; // which foot should land next; 'left' at the start
   lastOffsetMs: number | null; // signed error of the last step, for the pace meter (negative = early)
   segmentIndex: number; // current segment, so a change can be announced
+  segmentChangedAtMs: number | null; // when the current segment began; the banner reads this, not lastEvent
   stumbleUntilMs: number | null; // null = not stumbling
   lastEvent: { kind: GameEvent; atMs: number } | null; // for the renderer to flash
 }
 
 export function createGame(config?: GameConfig): GameState; // phase 'ready', speed/energy from config
-export function startRun(state: GameState): GameState; // phase 'running', timeMs 0, nextDueMs = baseStepIntervalMs, expectedFoot 'left'
+export function startRun(state: GameState): GameState; // a fresh createGame(config) with phase 'running'; the first step is due one base interval in, left foot
 export function tick(state: GameState, deltaMs: number): GameState; // time passes
 export function step(state: GameState, foot: Foot): GameState; // the player pressed a foot
 export function currentTargetIntervalMs(state: GameState): number; // pace of the segment at state.distance
@@ -304,7 +306,9 @@ export interface RunSummary {
 **`tick(state, deltaMs)` rules, in this order:**
 
 1. If `phase !== 'running'`, return `state` unchanged.
-2. `time = min(state.timeMs + deltaMs, runSeconds * 1000)`.
+2. `time = min(state.timeMs + deltaMs, runSeconds * 1000)` and
+   `elapsed = time - state.timeMs`. Rules 4 and 5 use `elapsed`, never the raw
+   `deltaMs`, so the final clamped tick does not overshoot.
 3. Stumble: if `stumbleUntilMs !== null` and `time >= stumbleUntilMs`, set
    `energy = stumbleRecoverTo`, `stumbleUntilMs = null`, and
    `nextDueMs = time + currentTargetIntervalMs` (a fresh start after getting up).
@@ -314,7 +318,8 @@ export interface RunSummary {
 5. Distance and score: `distance += speed * deltaMs / 1000`;
    `score += speed * deltaMs / 1000 * comboMultiplier(combo)`.
 6. Segment change: if `segmentAt(distance).index !== segmentIndex`, set
-   `segmentIndex` and `lastEvent = { kind: 'segment', atMs: time }`. The pace
+   `segmentIndex`, `segmentChangedAtMs = time` and
+   `lastEvent = { kind: 'segment', atMs: time }`. The pace
    for steps changes from this moment; `nextDueMs` is **not** moved (the step
    already in flight keeps its due time).
 7. Skipped steps (not while stumbling): while `time > nextDueMs + goodWindowMs`:
@@ -384,7 +389,7 @@ steps so decay and skipped steps behave like the real loop; and a helper
 - perfect: left at 600 ms -> speed +2, energy +3 (capped at max), combo 1,
   counts.perfect 1, `nextDueMs` 1200, `expectedFoot` right, `lastOffsetMs` 0.
 - good: then right at 1300 ms (100 late) -> speed +1, combo 2, `nextDueMs` 1900.
-- too fast: left at 1900 + 0, then right at 2100 (200 early for a 2500 due) ->
+- too fast: left at 1900 + 0, then right at 2100 (400 early for a 2500 due) ->
   miss, `lastEvent.kind` `tooFast`, speed -3, energy -10, combo 0.
 - wrong foot: right at 600 -> miss, `wrongFoot`; with
   `requireAlternatingFeet: false` the same press is perfect.
@@ -418,7 +423,41 @@ the lockfile changed.
 
 ---
 
+## M2 outcome (reviewed 2026-09-21)
+
+Done in commit `f8892b7`: 42 client tests, 9 server tests, typecheck clean.
+Interpretations made by the implementer and accepted, now part of the spec:
+
+- `startRun` returns a fresh `createGame(config)` in phase `running`, so
+  "Run again" needs no extra reset.
+- `createGame` sets `nextDueMs` to `baseStepIntervalMs` before the run starts.
+- `upcomingSegments` reports `metersIntoSegment: 0` for segments not reached.
+- The "too fast" test steps at 2100 ms; the parenthetical above was corrected.
+
+Three gaps found in the review, to be fixed as **M3 step 0** (below) before
+any rendering work.
+
 ## M3. It is a game
+
+### Step 0 - three small engine fixes from the M2 review
+
+Each with a test in the matching `*.test.ts`. Behaviour otherwise unchanged;
+all 42 existing tests must still pass.
+
+1. `tick`: compute `elapsed = time - state.timeMs` after clamping and use it
+   for decay and movement instead of `deltaMs` (tick rule 2). Test: at
+   59 995 ms a tick of 100 ms moves the runner `speed * 0.005` metres, not
+   `speed * 0.1`.
+2. `GameState.segmentChangedAtMs`: new field, `null` in `createGame`, set to
+   `time` in tick rule 6 alongside `lastEvent`. Test: after crossing a boundary
+   and then stepping, `lastEvent.kind` is the step result but
+   `segmentChangedAtMs` still holds the crossing time.
+3. `SegmentPosition.aheadMeters`: new field. For the current segment it is
+   `-metersIntoSegment`; for each following segment it is the running sum of
+   lengths from the runner to that segment's start, **continuing past the loop
+   end** (so after wrapping it keeps growing instead of resetting with
+   `startMeters`). Test: at 400 m on LEVEL_1 with look-ahead 100, the returned
+   segments are index 8 (`aheadMeters` -50), index 0 (10) and index 1 (70).
 
 ### Two ways to play
 
@@ -500,7 +539,8 @@ offsets derive from `state.distance`, never from wall-clock time.
    footprint flashes for 150 ms after `lastEvent.atMs`: green `perfect`,
    yellow `good`, red `tooFast` / `tooSlow` / `skipped`, red with the label
    "other foot!" on `wrongFoot`.
-7. Segment banner: for 1.5 s after a `segment` event, the terrain label and,
+7. Segment banner: for 1.5 s after `segmentChangedAtMs` (not `lastEvent`, which
+   a step can overwrite), the terrain label and,
    if not empty, the weather label, large, centred.
 8. HUD along the top: time left (seconds); speed bar; energy bar (turns red
    under 30); combo with multiplier ("x2"); score; and a **pace meter**: a

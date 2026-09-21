@@ -177,6 +177,11 @@ Milestones M2 to M5 are specified file by file in `docs/PHASE-1-BUILD.md`.
 
 Done when: `npm test` runs client and server tests and both pass.
 
+**Done 2026-09-21** (commit `f8892b7`, built by a separate implementing session):
+42 client tests in four files, 9 server tests, typecheck clean, only the
+game folder and the package files changed. Reviewed; three small follow-ups
+are listed as M3 step 0 in `PHASE-1-BUILD.md`.
+
 ### M3. It is a game
 
 1. `render.ts`: sky and weather, skyline, pavement, a road built from the

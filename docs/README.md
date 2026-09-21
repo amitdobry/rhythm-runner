@@ -21,8 +21,8 @@ Also read `../CLAUDE.md` (rules for Claude Code sessions) and `../README.md`
 | ----------------------------- | ----- | ------------------------------------ |
 | Phase 0 - foundation          | done  | PHASE-0.md                           |
 | M1 - hosted on Vercel         | done  | PHASE-1.md, DEPLOY.md                |
-| M2 - engine with tests        | next  | PHASE-1-BUILD.md, section M2         |
-| M3 - playable on PC and phone |       | PHASE-1-BUILD.md, section M3         |
+| M2 - engine with tests        | done  | PHASE-1-BUILD.md, section M2         |
+| M3 - playable on PC and phone | next  | PHASE-1-BUILD.md, section M3         |
 | M4 - scores and leaderboards  |       | PHASE-1-BUILD.md, section M4, API.md |
 | M5 - polish and hand-over     |       | PHASE-1-BUILD.md, section M5         |
 | Phase 2 - with the students   |       | PHASE-1.md, "Deferred to Phase 2"    |
