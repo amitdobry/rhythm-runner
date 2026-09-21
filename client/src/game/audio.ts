@@ -33,6 +33,7 @@ const SOUND_URL: Record<string, string> = {
   start: '/sounds/start.mp3',
   stumble: '/sounds/stumble.mp3',
   finish: '/sounds/finish.mp3',
+  sad: '/sounds/sad.mp3',
 };
 const MUSIC_URL = '/sounds/music.mp3';
 
@@ -40,7 +41,6 @@ const MUSIC_URL = '/sounds/music.mp3';
 // player's steps are still the things you notice.
 const MUSIC_VOLUME = 0.12;
 const EFFECT_VOLUME = 0.55;
-const SKIPPED_VOLUME = 0.28; // a missed beat is a quieter version of a wrong step
 const TICK_VOLUME = 0.06;
 
 const TICK_HZ = 880;
@@ -169,7 +169,7 @@ export function createMetronome(): Metronome {
 
     click(kind) {
       if (kind === 'due') playTick();
-      else if (kind === 'skipped') play('miss', SKIPPED_VOLUME);
+      else if (kind === 'skipped') play('sad', EFFECT_VOLUME);
       else if (kind === 'stumble') play('stumble', EFFECT_VOLUME);
       else play(kind, EFFECT_VOLUME);
     },
