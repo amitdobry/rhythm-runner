@@ -159,8 +159,13 @@ button.primary,
   font-weight: 600;
 }
 
+/* A link that looks like a button. It sits in flex rows next to real buttons
+   that are taller, and a stretched inline-block leaves its text at the top of
+   the box, so it centres its own content instead. */
 .button-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
