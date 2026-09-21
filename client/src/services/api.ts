@@ -58,3 +58,52 @@ export async function enterAsPlayer(nickname: string): Promise<Player> {
 }
 
 export const leave = () => request<{ ok: true }>('/api/player/leave', { method: 'POST' });
+
+// ---------------------------------------------------------------- scores
+
+export type Platform = 'pc' | 'mobile';
+
+/** What the game sends after a run. The server checks every number. */
+export interface RunSummary {
+  score: number;
+  distance: number;
+  accuracy: number;
+  bestCombo: number;
+  runSeconds: number;
+  platform: Platform;
+  course: string;
+}
+
+/** One line on a leaderboard. */
+export interface ScoreRow {
+  nickname: string;
+  score: number;
+  distance: number;
+  accuracy: number;
+  bestCombo: number;
+  platform: Platform;
+  course: string;
+  createdAt: string;
+}
+
+export interface MyScores {
+  best: { pc: ScoreRow | null; mobile: ScoreRow | null };
+  runs: number;
+}
+
+export function submitScore(summary: RunSummary): Promise<{ saved: ScoreRow; rank: number }> {
+  return request<{ saved: ScoreRow; rank: number }>('/api/scores', {
+    method: 'POST',
+    body: JSON.stringify(summary),
+  });
+}
+
+/** The leaderboard. This one works before you have entered a nickname. */
+export async function fetchTopScores(platform: Platform, limit?: number): Promise<ScoreRow[]> {
+  const query = new URLSearchParams({ platform });
+  if (limit !== undefined) query.set('limit', String(limit));
+  const { rows } = await request<{ rows: ScoreRow[] }>(`/api/scores/top?${query.toString()}`);
+  return rows;
+}
+
+export const fetchMyBest = () => request<MyScores>('/api/scores/me');

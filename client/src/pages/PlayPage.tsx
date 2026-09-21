@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePlayer } from '../player/PlayerContext';
+import { submitScore } from '../services/api';
 import { configForPlatform, type Platform } from '../game/config';
 import { summarize, type GameState } from '../game/engine';
 import { detectPlatform, readOverride, rememberPlatform } from '../game/platform';
@@ -16,6 +17,27 @@ export function PlayPage() {
   const config = useMemo(() => configForPlatform(platform), [platform]);
 
   const { state, start, restart, pressFoot, countdown } = useGameLoop(canvasRef, config);
+
+  // The run is sent once, when it ends. A failure is quiet: it must never
+  // stand between a child and the next run.
+  const [saved, setSaved] = useState<Saved>({ status: 'idle' });
+  const sentRef = useRef(false);
+
+  useEffect(() => {
+    if (state.phase === 'ready') {
+      sentRef.current = false;
+      setSaved({ status: 'idle' });
+      return;
+    }
+    if (state.phase !== 'finished' || sentRef.current) return;
+    sentRef.current = true;
+    setSaved({ status: 'saving' });
+    submitScore(summarize(state))
+      .then((result) => setSaved({ status: 'saved', rank: result.rank }))
+      .catch(() => setSaved({ status: 'failed' }));
+    // state stops changing once the run is finished, so this runs once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.phase]);
 
   const isMobile = platform === 'mobile';
   const running = state.phase === 'running';
@@ -76,6 +98,7 @@ export function PlayPage() {
           <div className="overlay">
             <h2>Run finished</h2>
             <ResultsTable state={state} />
+            <ScoreNote saved={saved} platform={platform} />
             <div className="overlay-buttons">
               <button className="primary" onClick={restart}>
                 Run again
@@ -144,6 +167,25 @@ function ResultsTable({ state }: { state: GameState }) {
       </div>
     </dl>
   );
+}
+
+type Saved =
+  | { status: 'idle' }
+  | { status: 'saving' }
+  | { status: 'saved'; rank: number }
+  | { status: 'failed' };
+
+function ScoreNote({ saved, platform }: { saved: Saved; platform: Platform }) {
+  if (saved.status === 'saving') return <p className="score-note">Saving your score...</p>;
+  if (saved.status === 'saved') {
+    return (
+      <p className="score-note">
+        Rank #{saved.rank} on {platform === 'pc' ? 'PC' : 'mobile'}
+      </p>
+    );
+  }
+  if (saved.status === 'failed') return <p className="score-note muted">Score not saved</p>;
+  return null;
 }
 
 /** A simple footprint drawn with shapes, so the pads need no pictures. */

@@ -256,3 +256,60 @@ button.primary,
   background: #ffd23f;
   border-color: #ffd23f;
 }
+
+/* ---------------------------------------------------------------- scores */
+
+.scores h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.score-tabs {
+  display: flex;
+  gap: 6px;
+}
+.score-tabs button {
+  padding: 4px 14px;
+}
+.score-tabs button.chosen {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+
+.score-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.score-table th,
+.score-table td {
+  padding: 4px 6px;
+  text-align: right;
+  white-space: nowrap;
+}
+.score-table th:nth-child(2),
+.score-table td:nth-child(2) {
+  text-align: left;
+  width: 99%; /* the name takes the slack so the numbers stay put */
+}
+.score-table th {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+.score-table tr.me {
+  background: #fff6d6;
+  font-weight: 600;
+}
+
+/* the line under the results in the game overlay */
+.score-note {
+  margin: 0;
+  font-weight: 600;
+}
+.score-note.muted {
+  font-weight: 400;
+  color: #aab4c4;
+}
