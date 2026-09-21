@@ -151,21 +151,6 @@ button:disabled {
   justify-content: center;
 }
 
-.platform-toggle {
-  display: flex;
-  gap: 6px;
-}
-.platform-toggle button {
-  padding: 6px 14px;
-  background: transparent;
-  color: #f2f4f8;
-  border-color: rgba(242, 244, 248, 0.5);
-}
-.platform-toggle button.chosen {
-  background: #f2f4f8;
-  color: var(--ink);
-}
-
 button.primary,
 .button-link.primary {
   background: #1d2230;
@@ -266,19 +251,6 @@ button.primary,
 .scores h2 {
   margin: 0;
   font-size: 1.1rem;
-}
-
-.score-tabs {
-  display: flex;
-  gap: 6px;
-}
-.score-tabs button {
-  padding: 4px 14px;
-}
-.score-tabs button.chosen {
-  background: var(--ink);
-  color: #fff;
-  border-color: var(--ink);
 }
 
 .score-table {
