@@ -460,6 +460,17 @@ two-board design from M4.
 Done when: the landing panel shows one list mixing Amit (phone) and any PC
 run; the results screen shows a rank against everyone; no toggle anywhere.
 
+### M6 complete (reviewed 2026-09-21)
+
+Items 1-10 built and accepted; Amit's play-test on phone and PC: "really good,
+fun". Item 10 (commits `6477d79` to `45424e9`): no toggle, one board with a
+mixed PC/phone list on production, mute button, start-cue fade, failure-sound
+priority. Also on Amit's direct request: `ee4c78f` hides the pads once the run
+is over, `1a9ca5c` centres a button-shaped link. Implementer decisions
+accepted: condition-style mute labels ("הקול פועל" / "הקול כבוי"); dead CSS
+removed; `rememberPlatform` kept for the hidden override. Still not run: the
+smoke script's real-database path (`server/.env` absent).
+
 ### M6 outcome, steps a-f (reviewed 2026-09-21)
 
 Done in commits `10e6f22` to `3672cff`: 29 server tests, 64 client tests,
@@ -508,11 +519,197 @@ Two small fixes, to be done with item 8:
 
 ---
 
-## M7. Replay and social (outline; spec before starting)
+## M7. Replay and identity
 
-Weekly board default with all-time tab; own row under the top 10; personal
-best celebration; one truthful contextual challenge per run; result card
-(canvas-generated PNG, native share, download, copy link); nickname safety.
+Three things: a weekly board so the top stays winnable, a personal-best
+celebration so a good run has a moment, and a **nickname you claim with a
+four-digit PIN** so nobody can play as you and a clean cache does not lose
+you. Dropped from the earlier outline: the contextual challenge and the share
+card (decide after the weekly board is live).
+
+### Scope in one list
+
+1. Sessions last a year, not a week.
+2. Claim a nickname with a PIN at the first save; the PIN is asked only from a
+   device the game does not know.
+3. Weekly board (Sunday to Sunday, Israel time) as the default; all-time as the
+   second view; the player's own row under the top 10 when outside it.
+4. Personal-best celebration on the results screen.
+5. Admin PIN reset behind the admin key.
+6. Clean start: Amit drops `players`, `sessions` and `scores` in Atlas when M7
+   deploys (indexes are recreated on the next cold start). Nothing on the
+   board today is real.
+
+Not in M7: engine, balance, rendering of the scene, sounds, analytics names
+(two new events only, below).
+
+### Files
+
+```text
+server/src/player/pin.ts            hashPin, verifyPin (scrypt), lock rules (new)
+server/src/player/players.ts        PlayerDoc gains pin fields; claim / verify helpers
+server/src/player/sessions.ts       SESSION_DAYS 365
+server/src/routes/player.ts         enter with PIN; reset-pin (admin)
+server/src/scores/week.ts           weekKeyFor(date) (new, pure, tested)
+server/src/scores/scores.ts         weekKey on save; top by range; me by range; PB detection
+server/src/routes/scores.ts         range query; me shape
+server/src/database/mongo.ts        indexes
+server/test/pin.test.ts, week.test.ts, players.test.ts, scores.test.ts, app.test.ts
+scripts/smoke.mjs                   enter with PIN; wrong PIN; weekly top
+client/src/components/NicknameForm.tsx   PIN field
+client/src/pages/LandingPage.tsx         week / all-time switch, own row
+client/src/pages/PlayPage.tsx            celebration; ranks line
+client/src/components/Celebration.tsx    confetti (new)
+client/src/services/api.ts, text/he.ts, analytics/analytics.ts, styles.css
+docs/API.md, docs/GAME-DESIGN.md, docs/README.md
+```
+
+### 1. Sessions
+
+`SESSION_DAYS = 365`. Cookie `maxAge` follows. The sessions TTL index already
+expires by `expiresAt`, nothing else changes. A device that entered once stays
+known for a year.
+
+### 2. Claim a nickname with a PIN
+
+**Data.** `PlayerDoc` gains `pinHash: string`, `pinSalt: string`,
+`pinAttempts: number`, `pinLockedUntil: Date | null`. Every player has a PIN
+(the wipe removes the old PIN-less ones).
+
+**`pin.ts`** (pure except for randomness, `node:crypto` only, no dependency):
+
+```ts
+export const PIN_PATTERN = /^\d{4}$/;
+export function isPin(value: unknown): value is string;
+export function hashPin(pin: string, salt?: string): { hash: string; salt: string }; // scrypt, 16-byte random salt, N=16384, hex
+export function verifyPin(pin: string, hash: string, salt: string): boolean; // timingSafeEqual
+export const MAX_ATTEMPTS = 5;
+export const LOCK_MINUTES = 15;
+export function nextLock(
+  attempts: number,
+  now: Date
+): { attempts: number; lockedUntil: Date | null };
+// attempts+1; when it reaches MAX_ATTEMPTS -> lockedUntil = now + LOCK_MINUTES, attempts reset to 0
+```
+
+**`POST /api/player/enter`** body `{ nickname, pin }`:
+
+| Case                                        | Result                                                               |
+| ------------------------------------------- | -------------------------------------------------------------------- |
+| bad nickname or `pin` not four digits       | `400` (`code: 'bad_input'`)                                          |
+| name unknown                                | create player with the PIN, session, `200 { player, claimed: true }` |
+| name known, locked (`pinLockedUntil` > now) | `423 { error, code: 'locked', retryAfterSeconds }`                   |
+| name known, PIN matches                     | reset attempts, session, `200 { player, claimed: false }`            |
+| name known, PIN wrong                       | `nextLock`, `401 { error, code: 'wrong_pin', attemptsLeft }`         |
+
+A valid session cookie never needs a PIN: `GET /me` is unchanged. The
+nickname is the only public part; the server never returns whether a name
+exists except through this route's answer.
+
+**`POST /api/player/reset-pin`** body `{ nickname }`, header `x-admin-key`:
+clears the PIN (`pinHash = ''`) and the lock; `404` without the key (same
+hiding as the events summary); `200 { ok: true }`. A player with an empty
+`pinHash` is claimed by the next `enter` for that name, whatever PIN it brings.
+
+**Client.** `NicknameForm` gets a second field: PIN, `inputMode="numeric"`,
+`maxLength 4`, `autocomplete="off"`, masked, with a plain sentence under it.
+One form for both the first claim and a return; the server decides. Errors
+by `code`: `wrong_pin` -> `T.wrongPin`, `locked` -> `T.pinLocked` with the
+minutes, `bad_input` -> `T.pinFormat`. The PIN is never stored in the browser;
+the session cookie is what the device keeps. Strings:
+
+| Key         | Hebrew                                                                              |
+| ----------- | ----------------------------------------------------------------------------------- |
+| pinLabel    | קוד סודי, 4 ספרות                                                                   |
+| pinHint     | הקוד שומר על השם שלכם: בלי הקוד אף אחד אחר לא יכול לשמור תוצאה בשם הזה. תזכרו אותו! |
+| pinFormat   | הקוד הוא בדיוק 4 ספרות                                                              |
+| wrongPin    | הקוד לא מתאים לשם הזה. אם זה לא השם שלכם, בחרו שם אחר. נותרו {n} ניסיונות           |
+| pinLocked   | יותר מדי ניסיונות. נסו שוב בעוד {minutes} דקות, או בחרו שם אחר                      |
+| nameClaimed | השם {name} שלכם עכשיו. הקוד שומר עליו                                               |
+| welcomeBack | ברוכים השבים, {name}!                                                               |
+
+Events: `pin_wrong` (no data), `pin_locked`.
+
+### 3. Weekly board
+
+**Week key.** `week.ts`: `weekKeyFor(date: Date): string` returns the
+`YYYY-MM-DD` of the Sunday that starts the week containing `date` **in
+Asia/Jerusalem** (use `Intl.DateTimeFormat` with `timeZone: 'Asia/Jerusalem'`
+to read the local weekday and date; no library). Tests: a Saturday 23:59
+Jerusalem and the following Sunday 00:01 map to different keys; a Sunday maps
+to itself; a UTC time that is already Sunday in Jerusalem but Saturday in UTC
+maps to the Jerusalem Sunday. `weekEndFor(key)` gives the next Sunday.
+
+**Save.** `ScoreDoc.weekKey` set from `createdAt` at save time. Index
+`{ course: 1, weekKey: 1, score: -1 }`.
+
+**Routes.**
+
+```text
+GET /api/scores/top?range=week|all&limit   default week, limit default 10 max 50, public
+  -> 200 { range, weekStart, weekEnd, rows: ScoreRow[], me: { rank, row } | null }
+     me is filled only when a valid session cookie is present and the player has a
+     score in that range; rank is the player's position in that range (1 = best).
+GET /api/scores/me
+  -> 200 { best: { week: ScoreRow | null, all: ScoreRow | null }, runs }
+POST /api/scores
+  -> 201 { saved, rankWeek, rankAll, personalBest, previousBest }
+     personalBest: true when score > the player's best before this save (first
+     save counts as a personal best with previousBest null).
+```
+
+Leaderboard queries add `$match { weekKey }` for `week`. `rankOf` takes the
+range. `bestScoreFor` is read **before** the insert to compute `personalBest`.
+
+**Client.** The "High scores" panel: a small two-way switch "השבוע / כל הזמנים"
+(default השבוע), a line under the title "הטבלה מתאפסת ביום ראשון" for the weekly
+view, the table, and when `me` is present and `me.rank > rows.length`, a
+separator and the player's own row with its rank. Strings: `thisWeek`
+השבוע, `allTime` כל הזמנים, `resetsSunday` הטבלה מתאפסת ביום ראשון,
+`yourRow` המקום שלכם.
+
+### 4. Personal-best celebration
+
+On the results screen, once the save answers with `personalBest: true`:
+
+- A banner above the numbers: "שיא חדש!" (`T.newBest`), or "השיא הראשון
+  שלכם!" (`T.firstBest`) when `previousBest` is null; large, FLASH_PERFECT.
+- `Celebration.tsx`: 40 confetti pieces (DOM `<i>` elements, CSS animation,
+  1.4 s, colours FLASH_PERFECT / FLASH_GOOD / white / RING), rendered once,
+  removed after. No canvas change, no new sound (the finish cue already plays).
+- The ranks line: "מקום {week} השבוע · מקום {all} בכל הזמנים" (`T.ranks`).
+  Event: `personal_best`.
+
+No celebration when `personalBest` is false; the ranks line still shows.
+
+### 5. Tests (no database)
+
+- `pin.test.ts`: isPin accepts `0000`, rejects `123`, `12345`, `12a4`; hash
+  then verify true; wrong pin false; two hashes of the same pin differ (salt);
+  nextLock reaches a lock at the fifth attempt and resets attempts.
+- `week.test.ts`: the four cases above.
+- `app.test.ts`: enter without pin -> 400; with pin and no database -> 503;
+  reset-pin without key -> 404.
+- `scores.test.ts`: top with `range=all` -> 503 (public, no 401); `range=x`
+  -> 400; `validateRun` unchanged.
+- Smoke script: enter new name + PIN -> 200 claimed; leave; enter same name
+  wrong PIN -> 401 wrong_pin; right PIN -> 200 not claimed; save two runs, the
+  second higher -> `personalBest` true then rank 1 in both ranges; top
+  `range=week` contains the name with `me.rank` 1.
+
+### Done when
+
+- A fresh device saves a run under a new name with a PIN. Storage cleared, the
+  same name with a wrong PIN is refused with the attempts-left message; with
+  the right PIN it enters and the board greets it.
+- The landing panel opens on "השבוע" with the reset line; "כל הזמנים" switches;
+  a player outside the top 10 sees their own row.
+- A run better than the player's previous best shows the banner and confetti;
+  a worse run shows the ranks line only.
+- Atlas collections dropped by Amit; the board starts empty; server tests
+  (29 + new) and client tests (69 + new) green; production verified.
+
+---
 
 ## M8. Character polish (outline; spec before starting)
 

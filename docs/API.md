@@ -28,6 +28,13 @@ Base URL: same origin as the page (`/api/...`). Production:
 
 ### `POST /api/player/enter`
 
+**Changing in M7:** the body gains `pin` (four digits). An unknown name is
+claimed with that PIN; a known name needs its PIN (`401 wrong_pin`, `423 locked`
+after five wrong tries). See `PHASE-2-BUILD.md`, M7 section 2. Also new in M7:
+`POST /api/player/reset-pin` behind the admin key, and `GET /api/scores/top`
+gains `range=week|all` with the caller's own row, while `POST /api/scores`
+answers with `rankWeek`, `rankAll`, `personalBest`, `previousBest`.
+
 Body: `{ "nickname": "Maya" }`. Nickname rules: 2-20 characters, letters in any
 language, digits, spaces, dashes, underscores; runs of spaces collapse to one.
 
