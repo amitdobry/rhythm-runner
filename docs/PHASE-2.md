@@ -58,15 +58,20 @@ admin PIN reset; a clean wipe of the test data at deploy. Dropped: the
 contextual challenge. Postponed: the share card, to be decided once the weekly
 board is live. Specified in `docs/PHASE-2-BUILD.md`.
 
-### M8 - Character polish
+### M8 - Character, scenery, finish, turbo
 
-A dartboard pace target under the due foot (red, yellow, green zones sized to
-the timing windows; a ring shrinks onto the green exactly when the step is due;
-see the build spec). One memorable runner: a face, squash and stretch on perfect steps, joy at high
-combo, panic at low energy, an exaggerated stumble; three colourways chosen
-before a run; a finish-line climax in the last five seconds (countdown, tape,
-streaks, score counting up, personal best as the largest message); more
-expressive weather transitions. Still plain shapes, no sprite sheets.
+The last milestone of the workshop version. The runner becomes a person with
+a face and expressions; a shirt colour comes from the nickname; the scenery
+gets sun, clouds, hills, trees, fish, splashes and leaves, with weather that
+rolls in; icons in the HUD and banners; a real finish with countdown, tape and
+spectators; and turbo, three seconds of boost and doubled scoring every twenty
+combo. Still plain shapes, no images, no new dependencies. Specified in
+`docs/PHASE-2-BUILD.md`.
+
+After M8 the workshop version is finished. Levels, more terrain and
+cross-platform multiplayer live in a separate experimental fork
+(`rhythm-runner-lab`), created only when that work starts, so the demo stays
+simple and readable.
 
 ### After M8, decided by the data
 

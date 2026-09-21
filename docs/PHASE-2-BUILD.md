@@ -726,43 +726,206 @@ dropped the test data), `range=x` 400, `reset-pin` without key 404.
 Awaiting Amit's play-test: claim a name with a PIN, clear storage, wrong PIN
 refused, right PIN accepted, personal-best banner on a better run.
 
-## M8. Character polish (outline; spec before starting)
+## M8. Character, scenery, finish, turbo
 
-Face and expressions, squash and stretch, three colourways, finish climax,
-weather transitions.
+The last milestone of the workshop version. The game already sells what Amit
+sells; M8 makes it look like it was made with care by a 12-year-old and an AI
+in ten sessions: plain shapes, a character with a face, a road with life, a
+proper ending, and one new reward. Nothing gets harder to learn.
 
-### Pace target: a dartboard under the due foot (Amit, 2026-09-21)
+### Scope in one list
 
-Replace the single pulsing footprint ring with a **static target** and a
-**moving ring**, so the player sees exactly when to step:
+1. The runner becomes a person: face, shirt, arms, knees, shoes, shadow,
+   squash and stretch, four expressions.
+2. A shirt colour of your own, derived from the nickname. No picker.
+3. Scenery with life: sun, clouds, hills, trees, bushes, fish, splashes,
+   leaves; weather that rolls in over a second.
+4. Segment banners with an icon; HUD with small drawn icons.
+5. The finish: countdown digits, finish tape, spectators, score counting up.
+6. Turbo: every twenty combo, three seconds of boost and doubled scoring.
+7. `render.ts` split into readable files.
 
-- The target sits under the due foot: three concentric zones like a dartboard.
-  From the rim inward: red, a yellow band, a **green band** at the due
-  radius, a yellow band, and a red centre (the centre means "far too late").
-  The formulas below are the definition; this sentence only describes them.
-- The moving ring starts large right after the previous step and shrinks
-  linearly towards the centre, reaching the edge of the green disc exactly at
-  `nextDueMs`. Step when the ring is on green.
-- The zones are the timing windows made visible. With `interval` the current
-  target interval and `base` the green radius in pixels:
-  ring radius `r(t) = base * (1 + (nextDueMs - t) / interval)` (so it keeps
-  shrinking past due, into the centre: "too slow");
-  green disc: `base * (1 - perfect/interval)` .. `base * (1 + perfect/interval)`;
-  yellow band out to `base * (1 + good/interval)` and in to `base * (1 - good/interval)`;
-  red beyond. The bands are therefore wider on mobile, automatically.
-- On a step the ring freezes for 150 ms where it was and flashes the result
-  colour; on a skipped step the target flashes red and the ring restarts.
-- A new segment changes `interval`, so the ring visibly speeds up or slows
-  down: the pace change becomes something you see, not only read.
-- Colours: green `FLASH_PERFECT`, yellow `FLASH_GOOD`, red `FLASH_BAD`, ring white.
+Not in M8: windows, penalties, terrain and weather factors, the course, the
+identity flow, the analytics names. Turbo is the only engine change.
 
-This is a rendering change only; `engine.ts` already exposes everything it
-needs (`nextDueMs`, `expectedFoot`, `currentTargetIntervalMs`, the windows in
-`config`). **Pulled forward into M6 as item 7** (Amit, 2026-09-21): it replaces
-the M3 pace ring in `render.ts` (`drawPaceRing` and the footprint pulse); the
-footprint flash on events stays. The green disc radius `base` is the old ring's
-resting radius. Acceptance: at 100 steps per minute on flat ground a
-first-time adult can tell from the target alone, sound off, when to step.
+### Files
+
+```text
+client/src/game/render.ts              composes the frame; under 150 lines after the split
+client/src/game/render/palette.ts      every colour, with names (new)
+client/src/game/render/scene.ts        sky, weather blend, hills, skyline, pavement, props, road, water (new)
+client/src/game/render/runner.ts       the character, expressions, shadow, streaks (new)
+client/src/game/render/target.ts       footprints and the dartboard (moved)
+client/src/game/render/answers.ts      lunges, popups, stars, shake, vignette (moved)
+client/src/game/render/hud.ts          bars, icons, banner (moved)
+client/src/game/render/finish.ts       the last five seconds (new)
+client/src/game/colours.ts             colourForNickname (new, pure, tested)
+client/src/game/config.ts              + turbo block
+client/src/game/engine.ts              + turbo rules
+client/src/game/engine.test.ts         + turbo tests
+client/src/game/audio.ts               + 'turbo' cue
+client/src/game/useGameLoop.ts         passes the shirt colour in RenderOptions
+client/src/pages/PlayPage.tsx          shirt colour from the signed-in nickname
+client/public/sounds/turbo.mp3         if Amit records one; otherwise a synthesized sweep
+docs/GAME-DESIGN.md, docs/README.md
+```
+
+The split is mechanical: same drawing, same constants, moved into files a
+child can open one at a time. `render(ctx, state, options)` keeps its
+signature and the draw order. Do the split as the first commit, with no
+visual change, so every later commit is small.
+
+### 1. The runner (`runner.ts`)
+
+Drawn with circles, rounded rectangles and lines. Proportions in "units" of
+the runner scale so the same code fits both layouts.
+
+- **Body.** Round head (radius 9), a neck, a shirt (rounded rectangle 14 wide,
+  20 tall) in the shirt colour, shorts in a darker tone, two arms from the
+  shoulders that swing opposite to the legs, two legs with a knee joint, two
+  shoes (small rounded rectangles) in a dark tone. An ellipse shadow on the
+  road under the runner, scaled by speed (faster = flatter and longer).
+- **Gait.** Legs and arms driven by a phase that advances with distance, not
+  time, so the stride matches the road: one stride per step interval at the
+  current pace. The leg of `expectedFoot` is forward and its shoe glows
+  slightly (FOOT_READY).
+- **Squash and stretch.** On `perfect` the runner stretches (taller by 8%,
+  narrower by 6%) for 120 ms then settles; on `good` half of that; on any
+  miss it squashes (shorter by 8%) for 120 ms. Replaces nothing: the lunge and
+  lean-back from item 8 stay.
+- **Face.** Two eyes and a mouth, chosen by state, in this priority order:
+  1. stumbling: spiral eyes (two small arcs), mouth an "o"; existing tilt stays.
+  2. turbo active: eyes as two horizontal lines (squinting into the wind), big grin.
+  3. energy < 30: wide eyes with raised eyebrows, mouth a flat line, two sweat
+     drops (tiny circles) beside the head.
+  4. combo >= 10: eyes as arcs (happy), open grin.
+  5. otherwise: two dots and a small smile.
+- **Colour.** `options.shirtColour` (see 2). Shorts, shoes and skin from the
+  palette.
+
+### 2. A colour of your own (`colours.ts`)
+
+```ts
+export const SHIRT_COLOURS: string[]; // six: red, orange, yellow, green, blue, purple, all readable on the road
+export function colourForNickname(nickname: string | null | undefined): string;
+// null/empty -> SHIRT_COLOURS[0]; otherwise a stable hash of the nickname
+// (sum of char codes with a multiplier, modulo six). Same name, same colour, every time.
+```
+
+`RenderOptions` gains `shirtColour: string`. `useGameLoop` takes it as a
+parameter and passes it through; `PlayPage` computes it from the signed-in
+player's nickname, default for a visitor who has not saved yet. Tests: empty
+and null give the default; two different names can give different colours;
+the same name always gives the same one; the result is always one of the six.
+
+### 3. Scenery (`scene.ts`)
+
+All parallax layers scroll from `state.distance` as today. New, back to front:
+
+- **Sun** (clear) or a **pale disc behind cloud** (rain, wind), top-left third.
+- **Clouds**: three to five, each three overlapping circles, scrolling at 0.1x,
+  more and darker in rain, stretched and faster in wind.
+- **Hills**: two rows of rounded bumps behind the skyline, 0.15x and 0.25x.
+- **Trees and bushes** on the pavement: a trunk and two circles, a bush is one
+  wide ellipse; placed by a seeded function of distance so they never pop.
+- **Water**: the existing band plus a fish (an ellipse with a triangle tail)
+  that surfaces every few metres, and a splash (three short lines) under the
+  foot on each step while on water.
+- **Rain**: existing streaks plus a small splash ring under the foot on each step.
+- **Wind**: existing streaks plus four leaves (small tilted ellipses) blowing
+  left faster than the road.
+- **Weather blend.** Sky colours, streak density and cloud darkness blend
+  linearly over 1000 ms from the previous segment's weather to the current
+  one, starting at `segmentChangedAtMs`. The previous segment is
+  `course[(index - 1 + course.length) % course.length]`.
+
+### 4. Banner icons and HUD icons (`hud.ts`)
+
+- The segment banner gains a drawn icon left of the text: a triangle for
+  uphill (pointing up), for downhill (pointing down), a wave for water, a flat
+  bar for flat; a cloud with lines for rain, three curved lines for wind.
+- HUD labels זמן, מהירות, אנרגיה become small icons drawn with paths: a clock
+  (circle and two hands), a lightning bolt (zigzag polygon), a heart (two
+  circles and a triangle). Combo and score keep their Hebrew words.
+
+### 5. The finish (`finish.ts`)
+
+From 55.0 s (`runSeconds - 5`) to the end, on top of the scene:
+
+- **Countdown**: the whole seconds remaining, 5 to 1, as a large digit in the
+  upper middle, each one scaling from 1.4x to 1.0x over its first 200 ms.
+- **Finish tape**: two poles and a ribbon that enter from the right edge at
+  55.0 s and reach the runner exactly at 60.0 s, moving linearly in time (not
+  in distance, so it always arrives on time). At 60.0 s the ribbon splits in
+  two and the halves flutter away over 400 ms.
+- **Spectators**: a row of eight stick figures on the pavement, arms raising
+  and lowering alternately every 250 ms, entering with the tape.
+- **Score count-up**: the results overlay already counts up over 600 ms; keep
+  it. No canvas confetti (the personal-best celebration owns confetti).
+
+### 6. Turbo (`config.ts`, `engine.ts`, `audio.ts`)
+
+```ts
+// config
+turbo: {
+  comboEvery: number; // a turbo starts each time the combo reaches a multiple of this (20)
+  seconds: number; // how long it lasts (3)
+  speedBoost: number; // added to speed the moment it starts (3)
+  scoreMultiplier: number; // score grows this many times faster while it lasts (2)
+}
+```
+
+`GameState` gains `turboUntilMs: number | null` (null in `createGame`) and
+`turboCount: number`. `GameEvent` gains `'turbo'`.
+
+Rules, added to the existing ones:
+
+- **step**, after the combo is updated and clamped: if the result was
+  `perfect` or `good` and `combo > 0` and `combo % comboEvery === 0`, then
+  `speed = min(max, speed + speedBoost)`, `turboUntilMs = timeMs + seconds * 1000`,
+  `turboCount += 1`, `lastEvent = { kind: 'turbo', atMs: timeMs }` (this
+  replaces the perfect/good event for that step; the popup shows the turbo).
+- **tick**, rule 4 (speed): while `turboUntilMs !== null && time < turboUntilMs`
+  there is no decay. Rule 5 (score): the multiplier is
+  `comboMultiplier(combo) * scoreMultiplier` while turbo is active.
+- **tick**, after rule 3: if `turboUntilMs !== null && time >= turboUntilMs`
+  then `turboUntilMs = null`. A stumble also ends turbo (set null in step
+  rule 8). A miss during turbo does not end it.
+- `summarize` adds `turbos: turboCount`. Server `validateRun` accepts an
+  optional integer `turbos >= 0` (ignored otherwise); `ScoreDoc` stores it.
+
+Tests: reaching combo 20 on a good step starts turbo with the boost and the
+event; combo 21 does not; combo 40 starts a second one and `turboCount` is 2;
+no decay for three seconds of ticks then decay resumes; score grows at
+`speed * multiplier * 2` during turbo; a stumble ends it early; a miss does
+not; `summarize.turbos`.
+
+Rendering (`answers.ts`, `runner.ts`, `hud.ts`): while turbo is active, twelve
+speed streaks instead of six, the shirt gains a white outline pulsing at 4 Hz,
+the road dashes stretch to twice their length, and a small "טורבו!" label sits
+above the combo. The `turbo` event gets the largest popup: "טורבו!" in
+FLASH_PERFECT rising 40 px with the eight-star burst.
+
+Sound: `cue('turbo')`. If `/sounds/turbo.mp3` exists it plays at
+EFFECT_VOLUME; if the fetch fails, a synthesized 300 ms rising sweep from
+440 Hz to 1320 Hz at TICK_VOLUME x 3. Amit may record one later and drop it in.
+
+Strings: `turbo` טורבו!, `turbosLabel` טורבו (for a results line "טורבו: {n}"
+shown only when `turbos > 0`).
+
+### Done when
+
+- A run on PC and on a phone shows: a runner with a face who grins at a long
+  combo and sweats when tired, a shirt colour that matches the saved nickname
+  and stays the same next visit, clouds, hills, trees, fish in the water,
+  splashes in rain, leaves in wind, weather that rolls in, icons in the HUD and
+  the banner, and a finish with countdown, tape and spectators.
+- Combo 20 triggers a visible, audible turbo; the results line shows the count.
+- All existing tests green plus the turbo and colour tests; typecheck clean;
+  `render.ts` under 150 lines; no new dependencies; balance values other than
+  the new turbo block unchanged.
+- Amit's eye: it looks like a game a child could have built, and better than
+  the ice lolly.
 
 ---
 
