@@ -600,3 +600,14 @@ button.primary.big {
   color: #f2f4f8;
   border-color: rgba(242, 244, 248, 0.5);
 }
+
+/* When the run is over the pads are gone, so the results take the whole
+   screen instead of being squeezed into the canvas at the top. */
+.play-mobile.play-over .play-stage {
+  flex: 1;
+  display: flex;
+}
+
+.play-mobile.play-over .play-canvas {
+  align-self: flex-start;
+}

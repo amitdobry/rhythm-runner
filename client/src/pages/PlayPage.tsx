@@ -57,6 +57,7 @@ export function PlayPage() {
 
   const isMobile = platform === 'mobile';
   const running = phase === 'running';
+  const over = phase === 'finished';
   const showHeader = !(isMobile && running) && !practising;
 
   // The page itself must not move while a thumb is hunting for a pad.
@@ -170,7 +171,11 @@ export function PlayPage() {
   }, [phase]);
 
   return (
-    <main className={isMobile ? 'play play-mobile' : 'play play-pc'}>
+    <main
+      className={[isMobile ? 'play play-mobile' : 'play play-pc', over ? 'play-over' : '']
+        .join(' ')
+        .trim()}
+    >
       {showHeader && (
         <header className="play-header">
           <Link to="/">{T.home}</Link>
@@ -264,9 +269,9 @@ export function PlayPage() {
         )}
       </div>
 
-      {isMobile && <p className="rotate-hint">{T.landscapeHint}</p>}
+      {isMobile && !over && <p className="rotate-hint">{T.landscapeHint}</p>}
 
-      {isMobile && (
+      {isMobile && !over && (
         <div className="play-pads">
           <button
             className="pad"
