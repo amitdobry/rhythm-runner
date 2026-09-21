@@ -78,7 +78,7 @@ const LOOK_AHEAD_SCREENS = 2.5; // how much road to build in front of the runner
 const RUNNER_X_FRACTION = 1 / 3;
 const HORIZON_FRACTION = 0.46;
 const ROAD_Y_FRACTION = 0.72; // where the road is under the runner's feet
-const ROAD_THICKNESS_FRACTION = 0.1;
+const ROAD_THICKNESS_FRACTION = 0.16;
 const ROAD_SLOPE = 0.16; // pixels of height per pixel of road on a hill
 const SKYLINE_PERIOD = 120;
 const SKYLINE_HEIGHTS = [0.16, 0.27, 0.11, 0.23, 0.2, 0.3, 0.14, 0.25];
@@ -182,21 +182,23 @@ function drawPavement(
   roadOffsetPx: number
 ): void {
   const horizon = height * HORIZON_FRACTION;
-  const bandHeight = height * 0.1;
+  // The pavement reaches all the way down to the road, so no sky shows between them.
+  const bandHeight = height * (ROAD_Y_FRACTION - HORIZON_FRACTION);
+  const postBase = horizon + bandHeight * 0.55;
 
   ctx.fillStyle = PAVEMENT;
   ctx.fillRect(0, horizon, width, bandHeight);
   ctx.fillStyle = PAVEMENT_EDGE;
-  ctx.fillRect(0, horizon + bandHeight - 4, width, 4);
+  ctx.fillRect(0, horizon + bandHeight - 5, width, 5);
 
   const offset = (roadOffsetPx * 0.6) % LAMP_SPACING;
   for (let x = -offset; x < width + LAMP_SPACING; x += LAMP_SPACING) {
-    const postHeight = height * 0.16;
+    const postHeight = height * 0.2;
     ctx.fillStyle = LAMP_POST;
-    ctx.fillRect(x, horizon - postHeight, 5, postHeight + bandHeight - 6);
+    ctx.fillRect(x, postBase - postHeight, 5, postHeight);
     ctx.fillStyle = LAMP_LIGHT;
     ctx.beginPath();
-    ctx.arc(x + 2.5, horizon - postHeight, 7, 0, Math.PI * 2);
+    ctx.arc(x + 2.5, postBase - postHeight, 7, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -421,9 +423,9 @@ function drawRunner(
   scale: number
 ): void {
   const stumbling = state.stumbleUntilMs !== null;
-  const bodyHeight = 58 * scale;
-  const bodyWidth = 22 * scale;
-  const headRadius = 10 * scale;
+  const bodyHeight = 68 * scale;
+  const bodyWidth = 25 * scale;
+  const headRadius = 11 * scale;
 
   ctx.save();
   ctx.translate(x, groundY);
