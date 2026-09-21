@@ -16,20 +16,20 @@ asking for a nickname before the child has played.
 
 ## Decisions
 
-| Question            | Decision                                                                                                                                                                                                                                              |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Language            | **Hebrew only**, right-to-left, end to end: pages, overlays, HUD, banners, pads. The brand name "Rhythm Runner" stays Latin. No language toggle.                                                                                                      |
-| First screen        | A landing page with one enormous "מתחילים!" button. No nickname before the first run.                                                                                                                                                                 |
-| Identity            | Nickname is asked **after** the first run, only to save the score. Returning players use a small "כבר שיחקתי" link on the landing page.                                                                                                               |
-| Tutorial            | A four-step playable practice (left, right, left, right) on the first visit; replayable from the start overlay. Never fails the child.                                                                                                                |
-| Workshop reveal     | Below the results, after they animate in. Honest wording: built by Amit with AI; in the workshop children learn to build their own games and apps. Two buttons: child "עוד פעם!", parent "לפרטים והרשמה לסדנה".                                       |
-| Sign-up destination | The existing landing page "בונים עם AI" (`https://amitdobry.github.io/`), its `#signup` form and WhatsApp card. One constant, `WORKSHOP_URL`; the button is hidden while it is empty. **The landing page is not published yet**; that is Amit's step. |
-| Behind the game     | A one-screen panel "איך בינה מלאכותית עזרה לבנות את המשחק?" with five plain steps and one friendly rule from the engine.                                                                                                                              |
-| Analytics           | Our own tiny anonymous funnel: an `events` collection, a public `POST /api/events`, a key-protected summary. No third party, no cookies for tracking, no personal data, never the nickname.                                                           |
-| Leaflet link        | The leaflet's QR codes already point at the landing page with `?b=1`..`?b=6`. The landing page's third demo card sends visitors to the game with the same `?b=N`; the game sends them back to `#signup` with it. One batch scheme, end to end.        |
-| Session length      | Stays 60 seconds. Measure abandonment first; a 20-second "quick run" is an M7+ experiment only if the data says so.                                                                                                                                   |
-| Skips               | Rule unchanged. `run_completed` events carry the skipped count so the "strategic silence" worry can be checked with data.                                                                                                                             |
-| Levels, multiplayer | Not in Phase 2. One good course sells the workshop; multiplayer is an infrastructure trap.                                                                                                                                                            |
+| Question            | Decision                                                                                                                                                                                                                                                                                                              |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Language            | **Hebrew only**, right-to-left, end to end: pages, overlays, HUD, banners, pads. The brand name "Rhythm Runner" stays Latin. No language toggle.                                                                                                                                                                      |
+| First screen        | A landing page with one enormous "מתחילים!" button. No nickname before the first run.                                                                                                                                                                                                                                 |
+| Identity            | Nickname is asked **after** the first run, only to save the score. Returning players use a small "כבר שיחקתי" link on the landing page.                                                                                                                                                                               |
+| Tutorial            | A four-step playable practice (left, right, left, right) on the first visit; replayable from the start overlay. Never fails the child.                                                                                                                                                                                |
+| Workshop reveal     | Below the results, after they animate in. Honest wording: built by Amit with AI; in the workshop children learn to build their own games and apps. Two buttons: child "עוד פעם!", parent "לפרטים והרשמה לסדנה".                                                                                                       |
+| Sign-up destination | The live landing page "בונים עם AI" at `https://amitdobry.github.io/workshop/`, its `#contact` form and WhatsApp card. One constant, `WORKSHOP_URL`; the button is hidden while it is empty.                                                                                                                          |
+| Behind the game     | A one-screen panel "איך בינה מלאכותית עזרה לבנות את המשחק?" with five plain steps and one friendly rule from the engine.                                                                                                                                                                                              |
+| Analytics           | Our own tiny anonymous funnel: an `events` collection, a public `POST /api/events`, a key-protected summary. No third party, no cookies for tracking, no personal data, never the nickname.                                                                                                                           |
+| Leaflet link        | The leaflet QR codes point at the landing page with a marker, `?ref=LEAF1`..`LEAF6` (older prints `?b=1`..`6`). The landing page's third demo card passes the marker to the game; the game passes it back to `#contact`. One scheme, defined once in the landing page's `attribution.js`, copied exactly by the game. |
+| Session length      | Stays 60 seconds. Measure abandonment first; a 20-second "quick run" is an M7+ experiment only if the data says so.                                                                                                                                                                                                   |
+| Skips               | Rule unchanged. `run_completed` events carry the skipped count so the "strategic silence" worry can be checked with data.                                                                                                                                                                                             |
+| Levels, multiplayer | Not in Phase 2. One good course sells the workshop; multiplayer is an infrastructure trap.                                                                                                                                                                                                                            |
 
 ## Milestones
 
@@ -40,10 +40,10 @@ workshop reveal with the sign-up button; "behind the game" panel; anonymous
 funnel analytics with a campaign parameter. Specified file by file in
 `docs/PHASE-2-BUILD.md`.
 
-Done when: a fresh phone visit to `/?b=3` reaches the results screen with taps
-only, no typing; saving with a nickname puts the run on the board; the
-workshop button opens the landing page's form with `?b=3`; the summary
-endpoint shows the funnel for batch 3.
+Done when: a fresh phone visit to `/?ref=LEAF5` reaches the results screen
+with taps only, no typing; saving with a nickname puts the run on the board;
+the workshop button opens the landing page's form with `?ref=LEAF5`; the
+summary endpoint shows the funnel for `LEAF5`.
 
 ### M7 - Replay and social
 
@@ -66,6 +66,12 @@ expressive weather transitions. Still plain shapes, no sprite sheets.
 
 Quick run, second course, collectibles, group codes for a class, expert mode.
 
+### Phase 3 - mechanics (Amit's note, 2026-09-21)
+
+A sprint on the game mechanics themselves is wanted after the conversion work:
+what makes a run feel better, deeper and fairer. To be brainstormed and
+planned separately once M6 is live and the first funnel numbers exist.
+
 ## Deferred and rejected
 
 - English toggle: rejected for now, the audience is Israeli children and parents.
@@ -87,7 +93,7 @@ is a distraction, multiplayer would be the wrong move.
 
 ## Open points for Amit
 
-- **Publish the landing page.** Create the public repo `amitdobry.github.io`,
-  push `index.html`, enable Pages. The printed QR codes depend on it.
+- Confirm the codes printed on the leaflets (`LEAF1`..`LEAF6`) so the funnel
+  report can be read per leaflet.
 - An `ADMIN_KEY` value to set in Vercel for the analytics summary (any long random string).
 - Vercel Pro, still open from Phase 1.

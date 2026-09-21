@@ -104,10 +104,11 @@ Anonymous funnel analytics. No cookies, no personal data, never the nickname.
 
 ### `POST /api/events` - public
 
-Body: `{ sid, name, platform, batch, data? }`. `sid` is a random per-browser
+Body: `{ sid, name, platform, ref, data? }`. `sid` is a random per-browser
 id (8-40 chars, `[a-z0-9]`); `name` one of the whitelisted event names;
-`platform` `pc`, `mobile` or `unknown`; `batch` `''` or `1`-`6` (the
-leaflet batch, same scheme as the landing page); `data` an optional small
+`platform` `pc`, `mobile` or `unknown`; `ref` `''` or the leaflet marker
+(`LEAF5`, or `B3` for the older `?b=3` prints), exactly as the landing page
+defines it; `data` an optional small
 object of numbers, booleans or short strings (at most 8 keys, 512 bytes).
 
 - `204` when valid, even if the database is down (analytics never fails the client).
@@ -117,7 +118,7 @@ object of numbers, booleans or short strings (at most 8 keys, 512 bytes).
 
 Header `x-admin-key` must equal the `ADMIN_KEY` environment variable.
 
-- `200 { days, byName: { [name]: { events, sessions } }, byBatch: { [batch]: { opened, played, completed, workshopClicked } } }`
+- `200 { days, byName: { [name]: { events, sessions } }, byRef: { [ref]: { opened, played, completed, workshopClicked } } }`
 - `404` when the key is missing, wrong, or `ADMIN_KEY` is not set. `503` without a database.
 
 ## Anything else under `/api`
