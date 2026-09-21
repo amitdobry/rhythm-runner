@@ -49,14 +49,6 @@ export const RAIN_STREAK = '#dbe7f2';
 
 export const WIND_STREAK = '#ffffff';
 
-export const RUNNER_BODY = '#f2f4f8';
-
-export const RUNNER_TRIM = '#1d2230';
-
-export const RUNNER_LEG = '#1d2230';
-
-export const RUNNER_LEG_READY = '#ffd23f';
-
 export const RUNNER_STUMBLE = '#e8503a';
 
 export const FOOTPRINT = '#cfd6e0';
@@ -94,3 +86,12 @@ export const STREAK_COLOUR = 'rgba(255, 255, 255, 0.75)';
 export const VIGNETTE_COLOUR = 'rgba(232, 80, 58, 0.5)';
 
 export const FONT = 'Heebo, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+// The runner as a person: skin, shorts, shoes and the shadow under them.
+export const RUNNER_SKIN = '#f6d3b0';
+export const RUNNER_SHORTS = '#2f3a52';
+export const RUNNER_SHOE = '#1d2230';
+export const RUNNER_FACE = '#1d2230';
+export const RUNNER_SHADOW = 'rgba(15, 18, 26, 0.22)';
+export const FOOT_READY = '#ffd23f'; // the shoe that must land next
+export const SWEAT = '#9fd8ff';
