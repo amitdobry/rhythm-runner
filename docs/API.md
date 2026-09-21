@@ -98,7 +98,7 @@ mobile are separate boards because the timing windows differ.
 
 `200 { "best": { "pc": ScoreRow | null, "mobile": ScoreRow | null }, "runs": 12 }`.
 
-## Events (M6, planned)
+## Events
 
 Anonymous funnel analytics. No cookies, no personal data, never the nickname.
 
