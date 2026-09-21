@@ -93,28 +93,28 @@ export const PC_CONFIG: GameConfig = {
   platform: 'pc',
   runSeconds: 60,
   baseStepIntervalMs: 600,
-  perfectWindowMs: 60,
-  goodWindowMs: 120,
+  perfectWindowMs: 90,
+  goodWindowMs: 170,
   requireAlternatingFeet: true,
   paceGuideClick: true,
   terrain: TERRAIN,
   weather: WEATHER,
   course: LEVEL_1,
   speed: {
-    start: 4,
+    start: 6,
     max: 20,
-    perfectBoost: 2,
+    perfectBoost: 2.5,
     goodBoost: 1,
-    missPenalty: 3,
-    decayPerSecond: 0.8,
-    stumbleSpeed: 1,
+    missPenalty: 1.5,
+    decayPerSecond: 0.6,
+    stumbleSpeed: 2,
   },
   energy: {
     start: 100,
     max: 100,
     perfectGain: 3,
-    missLoss: 10,
-    stumbleRecoverTo: 30,
+    missLoss: 6,
+    stumbleRecoverTo: 50,
     stumbleSteps: 1,
   },
   comboMultipliers: [
@@ -128,8 +128,8 @@ export const PC_CONFIG: GameConfig = {
 export const MOBILE_CONFIG: GameConfig = {
   ...PC_CONFIG,
   platform: 'mobile',
-  perfectWindowMs: 80,
-  goodWindowMs: 160,
+  perfectWindowMs: 110,
+  goodWindowMs: 210,
 };
 
 export const DEFAULT_CONFIG = PC_CONFIG; // tests use this

@@ -64,13 +64,14 @@ describe('step', () => {
 
   it('still rewards a step that is a little late', () => {
     const perfect = stepAt(startRun(createGame()), 600, 'left');
-    const before = advanceTo(perfect, 1300); // 100 ms after it was due
+    const lateBy = DEFAULT_CONFIG.perfectWindowMs + 10; // past perfect, inside good
+    const before = advanceTo(perfect, 1200 + lateBy);
     const after = step(before, 'right');
     expect(after.lastEvent?.kind).toBe('good');
     expect(after.speed).toBeCloseTo(before.speed + DEFAULT_CONFIG.speed.goodBoost);
     expect(after.combo).toBe(2);
     expect(after.counts.good).toBe(1);
-    expect(after.nextDueMs).toBeCloseTo(1900);
+    expect(after.nextDueMs).toBeCloseTo(1200 + lateBy + 600);
   });
 
   it('punishes a step that comes too early', () => {
@@ -130,7 +131,8 @@ describe('tick', () => {
   it('drains speed faster in a headwind', () => {
     const wind = withCourse([{ terrain: 'flat', weather: 'wind', lengthMeters: 1000 }]);
     const windy = advanceTo(startRun(createGame(wind)), 1000);
-    expect(DEFAULT_CONFIG.speed.start - windy.speed).toBeCloseTo(1.2);
+    const inWind = DEFAULT_CONFIG.speed.decayPerSecond * DEFAULT_CONFIG.weather.wind.decayFactor;
+    expect(DEFAULT_CONFIG.speed.start - windy.speed).toBeCloseTo(inWind);
 
     const calm = advanceTo(startRun(createGame()), 1000);
     expect(DEFAULT_CONFIG.speed.start - calm.speed).toBeCloseTo(
@@ -224,11 +226,14 @@ describe('limits', () => {
 
 describe('stumbling', () => {
   // The same foot over and over: the first step is fine, every one after it is
-  // the wrong foot, and ten misses empty the energy bar.
+  // the wrong foot. How many it takes to empty the energy bar comes from the
+  // config, so tuning the game does not break the rule this test is about.
   function untilOutOfEnergy(): GameState {
     let state = stepAt(startRun(createGame()), 600, 'left');
-    for (let dueMs = 1200; dueMs <= 6600; dueMs += 600) {
+    let dueMs = 1200;
+    while (state.energy > 0 && dueMs < DEFAULT_CONFIG.runSeconds * 1000) {
       state = stepAt(state, dueMs, 'left');
+      dueMs += 600;
     }
     return state;
   }
@@ -236,23 +241,27 @@ describe('stumbling', () => {
   it('trips the runner when the energy runs out', () => {
     const state = untilOutOfEnergy();
     expect(state.energy).toBe(0);
-    expect(state.stumbleUntilMs).toBe(7200);
     expect(state.speed).toBe(DEFAULT_CONFIG.speed.stumbleSpeed);
     expect(state.lastEvent?.kind).toBe('stumble');
+    // one pace interval on the flat road the runner is still standing on
+    expect(state.stumbleUntilMs).toBe(state.timeMs + DEFAULT_CONFIG.baseStepIntervalMs);
   });
 
   it('ignores steps and counts nothing as skipped while the runner is down', () => {
-    const down = advanceTo(untilOutOfEnergy(), 7000);
+    const tripped = untilOutOfEnergy();
+    const down = advanceTo(tripped, (tripped.stumbleUntilMs ?? 0) - 200);
     expect(step(down, 'right')).toBe(down);
     expect(down.counts.skipped).toBe(0);
     expect(down.speed).toBe(DEFAULT_CONFIG.speed.stumbleSpeed);
   });
 
   it('gets the runner up with fresh energy and a fresh due time', () => {
-    const up = advanceTo(untilOutOfEnergy(), 7200);
+    const tripped = untilOutOfEnergy();
+    const getsUpAt = tripped.stumbleUntilMs ?? 0;
+    const up = advanceTo(tripped, getsUpAt);
     expect(up.stumbleUntilMs).toBeNull();
     expect(up.energy).toBe(DEFAULT_CONFIG.energy.stumbleRecoverTo);
-    expect(up.nextDueMs).toBeCloseTo(7800);
+    expect(up.nextDueMs).toBeCloseTo(getsUpAt + DEFAULT_CONFIG.baseStepIntervalMs);
   });
 });
 
