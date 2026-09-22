@@ -6,7 +6,13 @@ import { configForPlatform, type Foot, type Platform } from '../game/config';
 import { summarize } from '../game/engine';
 import { detectPlatform, readOverride } from '../game/platform';
 import { useGameLoop } from '../game/useGameLoop';
-import { createTutorial, tutorialPress, type TutorialState } from '../game/tutorial';
+import {
+  createTutorial,
+  tutorialNext,
+  tutorialPress,
+  type PressTiming,
+  type TutorialState,
+} from '../game/tutorial';
 import { colourForNickname } from '../game/colours';
 import { T, fill, formatNumber } from '../text/he';
 import { currentRef, track } from '../analytics/analytics';
@@ -19,6 +25,8 @@ import { MuteButton } from '../components/MuteButton';
 import { Celebration } from '../components/Celebration';
 
 const TUTORIAL_DONE_KEY = 'rr_tutorial_done';
+const FIRST_RUN_KEY = 'rr_first_run_done';
+const FIRST_RUN_HINT_MS = 5000;
 const TUTORIAL_CHEER_MS = 700;
 const REVEAL_DELAY_MS = 1200;
 const COUNT_UP_MS = 600;
@@ -54,6 +62,7 @@ export function PlayPage() {
   const [askNickname, setAskNickname] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
   const [showBehind, setShowBehind] = useState(false);
+  const [firstRun, setFirstRun] = useState(() => !remembered(FIRST_RUN_KEY));
   const pendingRun = useRef<RunSummary | null>(null);
   const sentRef = useRef(false);
 
@@ -85,9 +94,9 @@ export function PlayPage() {
   );
 
   const handleFoot = useCallback(
-    (foot: Foot) => {
+    (foot: Foot, timing: PressTiming = 'green') => {
       if (tutorial) {
-        setTutorial((current) => (current ? tutorialPress(current, foot) : current));
+        setTutorial((current) => (current ? tutorialPress(current, foot, timing) : current));
         return;
       }
       pressFoot(foot);
@@ -107,6 +116,14 @@ export function PlayPage() {
   useEffect(() => {
     if (phase === 'running') track('run_started');
   }, [phase]);
+
+  // The very first run carries one line of help for five seconds, then never again.
+  useEffect(() => {
+    if (phase !== 'running' || !firstRun) return;
+    remember(FIRST_RUN_KEY);
+    const timer = window.setTimeout(() => setFirstRun(false), FIRST_RUN_HINT_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase, firstRun]);
 
   // A run somebody walked away from is worth knowing about, and how far in.
   const phaseRef = useRef(phase);
@@ -194,10 +211,14 @@ export function PlayPage() {
         {tutorial && (
           <TutorialOverlay
             state={tutorial}
+            config={config}
             onFoot={handleFoot}
+            onNext={() => setTutorial((current) => (current ? tutorialNext(current) : current))}
             onSkip={() => finishTutorial(false)}
           />
         )}
+
+        {firstRun && running && <p className="first-run-hint">{T.firstRunHint}</p>}
 
         {countdown !== null && (
           <div className="overlay overlay-countdown">
@@ -425,18 +446,26 @@ function SaveStep({
   );
 }
 
-function tutorialWasDone(): boolean {
+function remembered(key: string): boolean {
   try {
-    return window.localStorage.getItem(TUTORIAL_DONE_KEY) === '1';
+    return window.localStorage.getItem(key) === '1';
   } catch {
     return false;
   }
 }
 
-function rememberTutorialDone(): void {
+function remember(key: string): void {
   try {
-    window.localStorage.setItem(TUTORIAL_DONE_KEY, '1');
+    window.localStorage.setItem(key, '1');
   } catch {
     // a child who practises twice has lost nothing
   }
+}
+
+function tutorialWasDone(): boolean {
+  return remembered(TUTORIAL_DONE_KEY);
+}
+
+function rememberTutorialDone(): void {
+  remember(TUTORIAL_DONE_KEY);
 }

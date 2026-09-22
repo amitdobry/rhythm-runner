@@ -946,6 +946,74 @@ rolling in, scenery, the tape arriving at zero, turbo at twenty).
 
 ---
 
+## M9. A practice that teaches the game (Amit, 2026-09-22)
+
+Planned and built in the implementer's thread, at Amit's request, while the
+planning thread was disconnected. Recorded here so both threads agree.
+
+**Why.** Amit gave the game to friends and family. Every one of them said the
+same thing: it is very hard to understand what is going on when you start.
+
+The cause is specific. The M6 practice taught **which foot** - the easy half -
+and hid the hard half: its overlay covered the canvas, so a child practised
+against two still footprints and then met the shrinking ring, the timing
+windows and the changing pace all in the first second of a real run.
+
+**The fix.** One idea per beat, practised on the real target.
+
+| Beat        | Teaches                          | What happens                                                                                                                                            |
+| ----------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. `timing` | the ring means time              | The dartboard appears with a ring closing in, at **1.5x the base interval** so it is slow. Either foot. Press when the ring is on green. **3** presses. |
+| 2. `feet`   | feet alternate                   | Same target, now at the real interval, alternating left and right. The glowing footprint is next. **4** presses.                                        |
+| 3. `road`   | the pace is not yours to compute | A card, nothing to press: three icons (flat, uphill, water) and one sentence. A button starts the run.                                                  |
+
+Nothing can be failed. A press outside the green says "early" or "late" and
+asks again; a wrong foot in beat 2 says so; neither advances the count.
+
+### Files
+
+```text
+client/src/game/tutorial.ts          stages, PressTiming, tutorialNext (rewritten)
+client/src/game/tutorial.test.ts     8 tests
+client/src/components/TutorialOverlay.tsx  the DOM target and the three beats
+client/src/pages/PlayPage.tsx        stage wiring, first-run hint
+client/src/text/he.ts                + 11 strings
+client/src/styles.css                target, dots, road card, first-run hint
+```
+
+### The target in the overlay
+
+Plain elements, not canvas, because it has to sit over the game while words
+explain it. The zones use the **same formulas as `render/target.ts`**, so what
+is learned here is what is met out there: red, yellow at
+`base * (1 ± good/interval)`, green at `base * (1 ± perfect/interval)`, red
+centre. `base` is 46 px. The ring's size is written to the element every
+frame from `requestAnimationFrame`; nothing is a CSS animation, so a press can
+be judged against the exact phase.
+
+A press is judged against the **nearest** cycle boundary, so pressing just
+after a due moment reads as late rather than very early. Green is
+`config.goodWindowMs` - the window that would really have scored.
+
+### The first run
+
+The very first real run of a browser shows one line under the HUD for **5
+seconds**: `firstRunHint` - לחצו כשהטבעת על הירוק. Remembered in
+`localStorage.rr_first_run_done`; shown once, ever.
+
+### Not in M9
+
+No engine change, no balance change, no canvas change, no new analytics names,
+no new dependency. `rr_tutorial_done` keeps its meaning, so anyone who already
+practised is not asked again.
+
+### Done when
+
+A first-time adult who has never seen the game can say, after the practice and
+before the run, what the ring is for and what makes the pace change.
+
+---
+
 ## Landing page task (outside this repo)
 
 Done by the planner on 2026-09-21. The live landing page
